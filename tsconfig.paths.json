@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@root/*": ["./*"],
+      "@root": ["./"],
+      "@components/*": ["./components/*"],
+      "@components": ["./components/"],
+      "@styles/*": ["./styles/*"],
+      "@styles": ["./styles/"],
+      "@typings/*": ["./types/*"],
+      "@typings": ["./types/"],
+      "@icons/*": ["./public/icons/*"],
+      "@icons": ["./public/icons/"],
+    }
+  }
+}

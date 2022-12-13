@@ -1,0 +1,77 @@
+.Wrapper {
+  display: flex;
+  position: relative;
+}
+
+.LegendWrapper {
+  flex-grow: 1;
+  width: 20%;
+  min-width: 180px;
+}
+
+.Legend {
+  min-height: 300px;
+  max-height: 50%;
+  width: 100%;
+  padding: 0.5em;
+  overflow-y: scroll;
+}
+
+
+.LegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  background-color: transparent;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  padding-bottom: 0.3em;
+  text-align: start;
+  cursor: pointer;
+}
+
+.LegendItem * {
+  pointer-events: none;
+}
+
+.LegendItemActive svg circle {
+  fill: currentColor !important;
+}
+
+.LegendDot {
+  width: 20px;
+  min-width: 20px;
+}
+
+.LegendShow {
+  background-color: rgb(180, 180, 180);
+  height: 35px;
+  width: 35px;
+  padding: 0.3em;
+  border-radius: 4px;
+  border: 1px solid white;
+  position: absolute;
+  right: 0;
+}
+
+.LegendShow button {
+  background-color: transparent;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+}
+
+
+.FloatingLegendWrapper {
+  z-index: 2;
+}
+
+.FloatingLegend {
+  background-color: rgb(180, 180, 180);
+  max-height: 350px;
+  overflow-y: scroll;
+}

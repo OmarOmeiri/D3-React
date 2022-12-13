@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!-- <script data-require="d3@3.5.3" data-semver="3.5.3" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.js"></script> -->
+  <script src="https://d3js.org/d3.v3.min.js"></script>
+  <script data-require="jquery@2.1.4" data-semver="2.1.4" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <style>
+    svg {
+      font: 10px sans-serif;
+    }
+    
+    svg .text {
+      font-size: 1.2em;
+      shape-rendering: crispEdges;
+    }
+    
+    .controls {
+      display: block;
+      margin-left: 20px;
+      margin-top: 20px;
+    }
+    
+    .axis path,
+    .axis line {
+      fill: none;
+      stroke: #000;
+      shape-rendering: crispEdges;
+    }
+    
+    .line {
+      fill: none;
+    }
+    
+    .grid {
+      stroke: #eee;
+    }
+    
+    .bar {
+      fill: #40779C;
+    }
+    
+    .bar:hover {
+      fill: #AD4444;
+    }
+    
+    .barChart .x.axis path {
+      stroke: none;
+    }
+    
+    .barChart .text,
+    .lineChart .text {
+      fill: #fff;
+    }
+    
+    .pieChart .text {
+      fill: #666;
+    }
+    
+    .arc path {
+      stroke: #fff;
+    }
+    
+    #getData {
+      margin-left: 10px;
+    }
+    
+    #weeks {
+      margin-left: 10px;
+    }
+    
+    .accordion-title {
+      margin: 3px 0;
+    }
+    
+    .overlay {
+      fill: none;
+      stroke: none;
+    }
+    
+    .dataNode {
+      fill: #eee;
+      stroke: #666;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="row">
+    <div class="col-lg-12">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          Data sets
+        </div>
+        <div class="panel-body">
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" class="data-set-control" checked="" />
+              <span>dataSet1</span>
+            </label>
+          </div>
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" class="data-set-control" checked="" />
+              <span>dataSet2</span>
+            </label>
+          </div>
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" class="data-set-control" checked="" />
+              <span>dataSet3</span>
+            </label>
+          </div>
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" class="data-set-control" />
+              <span>dataSet4</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br />
+  <div class="row">
+    <div id="chartContainer"></div>
+  </div>
+  <script>
+    dataSet1 = {
+      name: 'dataSet1',
+      data: [{
+        x: 0,
+        y: 19
+      }, {
+        x: 1,
+        y: 16
+      }, {
+        x: 2,
+        y: 21
+      }, {
+        x: 3,
+        y: 24
+      }, {
+        x: 4,
+        y: 19
+      }, {
+        x: 5,
+        y: 18
+      }, {
+        x: 6,
+        y: 22
+      }]
+    }
+
+    dataSet2 = {
+      name: 'dataSet2',
+      data: [{
+        x: 0,
+        y: 26
+      }, {
+        x: 1,
+        y: 23
+      }, {
+        x: 2,
+        y: 29
+      }, {
+        x: 3,
+        y: 34
+      }, {
+        x: 4,
+        y: 27
+      }, {
+        x: 5,
+        y: 28
+      }, {
+        x: 6,
+        y: 33
+      }]
+    };
+    dataSet3 = {
+      name: 'dataSet3',
+      data: [{
+        x: 0,
+        y: 45
+      }, {
+        x: 1,
+        y: 51
+      }, {
+        x: 2,
+        y: 42
+      }, {
+        x: 3,
+        y: 47
+      }, {
+        x: 4,
+        y: 54
+      }, {
+        x: 5,
+        y: 57
+      }, {
+        x: 6,
+        y: 49
+      }]
+    };
+    dataSet4 = {
+      name: 'dataSet4',
+      data: [{
+        x: 0,
+        y: 80
+      }, {
+        x: 1,
+        y: 69
+      }, {
+        x: 2,
+        y: 81
+      }, {
+        x: 3,
+        y: 84
+      }, {
+        x: 4,
+        y: 78
+      }, {
+        x: 5,
+        y: 83
+      }, {
+        x: 6,
+        y: 85
+      }]
+    };
+    // coerce json strings to integers
+    function mapData(data) {
+      data.forEach(function(d) {
+        d.data.forEach(function(v) {
+          v.y = (v.y) ? +v.y : null;
+        });
+      });
+      return data;
+    }
+    // get requested data sets for json request
+    function getDataSets() {
+      // loop through checked boxes for requested data sets
+      dataSets = [];
+      var c = 0;
+      $('input:checkbox.data-set-control').each(function(i) {
+        if ($(this).prop('checked')) {
+          var name = $(this).siblings('span').html();
+          var val = $(this).val();
+          if (name == 'dataSet1') {
+            dataSets[c] = dataSet1;
+            c++;
+          }
+          if (name == 'dataSet2') {
+            dataSets[c] = dataSet2;
+            c++
+          }
+          if (name == 'dataSet3') {
+            dataSets[c] = dataSet3;
+            c++;
+          }
+          if (name == 'dataSet4') {
+            dataSets[c] = dataSet4;
+            c++;
+          }
+        }
+      });
+      return dataSets;
+    }
+    // svg margins
+    var margin = {
+      top: 20,
+      right: 30,
+      bottom: 30,
+      left: 40
+    };
+    // svg dimensions
+    totalW = 900;
+    totalH = 400;
+
+    var width = totalW - margin.left - margin.right;
+    var height = totalH - margin.top - margin.bottom;
+    var radius = 3;
+
+    var x = d3.scale.linear()
+      .range([0, width], .1);
+
+    var y = d3.scale.linear()
+      .range([height, 0]);
+
+    var svg = d3.select('#chartContainer').append('svg')
+      .attr('class', 'lineChart')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom)
+      .append('g')
+      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+    var color = d3.scale.category10();
+
+    var line = d3.svg.line()
+      .defined(function(d) {
+        return d.y != null;
+      })
+      .interpolate('cardinal')
+      .x(function(d) {
+        return x(d.x);
+      })
+      .y(function(d) {
+        return y(d.y);
+      });
+
+
+    function render() {
+      /*
+      var ajax = JSON.stringify( getDataSets() );
+      var url = '../scripts/d3-data.php?ajax='+ajax;
+      d3.json(url, function (data) { */
+      // json normally returns an array of objects commensurate
+      // to the number of checked boxes representing data sets
+
+      // manually set data for fiddle
+      data = getDataSets();
+      // global width/height variables are lost through json request
+      totalW = 900;
+      totalH = 400;
+      var width = totalW - margin.left - margin.right;
+      var height = totalH - margin.top - margin.bottom;
+
+      // coerce json to integers
+      d3Data = mapData(data);
+
+      color.domain(d3Data.map(function(d) {
+        return d.name;
+      }));
+
+      x.domain([
+        0,
+        d3.max(d3Data, function(d) {
+          return d3.max(d.data, function(v) {
+            return v.x;
+          });
+        })
+      ]);
+      y.domain([
+        0,
+        d3.max(d3Data, function(d) {
+          return d3.max(d.data, function(v) {
+            return v.y + 10;
+          });
+        })
+      ]);
+
+      var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient('bottom');
+
+      var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient('left');
+
+      // check if y axis exists
+      if (svg.selectAll(".y.axis")[0].length < 1) {
+        // does not, append to svg
+        svg.append("g")
+          .attr("class", "y axis")
+          .call(yAxis);
+      } else {
+        // does, so transition any domain change(s)
+        var updateY = svg.selectAll(".y.axis");
+        updateY.transition().duration(500).call(yAxis);
+      }
+
+      // x axis never changes so only append if doesn't exist
+      if (svg.selectAll('.x.axis')[0].length < 1) {
+        svg.append('g')
+          .attr('class', 'x axis')
+          .call(xAxis)
+          .attr('transform', 'translate(0,' + height + ')');
+      }
+
+      // only add horizontal grid if doesn't exist
+      if (svg.selectAll('.grid')[0].length < 1) {
+        // add horizontal lines for readability
+        svg.append('g')
+          .attr('class', 'grid')
+          .call(d3.svg.axis().scale(y)
+            .orient('left')
+            .tickSize(-(width), 0, 0)
+            .tickValues(function(d, i) {
+              var tickVals = [];
+              var max = d3.max(d3Data, function(d) {
+                return d3.max(d.data, function(v) {
+                  return +v.y;
+                });
+              });
+              for (i = 10; i < (max + 10); i += 10) {
+                tickVals.push(i);
+              }
+              return tickVals;
+            })
+            .tickFormat('')
+          );
+      }
+
+      var path = svg.selectAll('.line')
+        .data(d3Data)
+        .attr('class', 'line');
+
+      path.transition()
+        .duration(500)
+        .attr('d', function(d) {
+          return line(d.data);
+        })
+        .style('stroke', function(d) {
+          return color(d.name);
+        });
+
+      path.enter()
+        .append('path')
+        .attr('class', 'line')
+        .attr('d', function(d) {
+          return line(d.data);
+        })
+        .style('stroke', function(d) {
+          return color(d.name);
+        });
+
+      path.exit().remove();
+
+      var nodeGroup = svg.selectAll('.nodeGroup')
+        .data(d3Data, function(d){
+          return d.name;
+        });
+        
+      nodeGroup.exit().remove();
+        
+      nodeGroup  
+        .enter()
+        .append('g')
+        .attr('class', 'nodeGroup');
+
+      var circles = nodeGroup.selectAll('.dataNode')
+        .data(function(d) {
+          return d.data;
+        });
+
+      circles.enter()
+        .append('circle')
+        .style('opacity', 0)
+        .attr('class', 'dataNode')
+        .attr('r', function(d) {
+          return d.y == null ? 0 : radius;
+        });
+
+      circles.exit().remove();
+
+      circles
+        .attr('cx', function(d) {
+          return x(d.x);
+        })
+        .attr('cy', function(d) {
+          return y(d.y);
+        })
+        .transition()
+        .duration(500)
+        .delay(300)
+        .style('opacity', 1);
+
+      //});
+    }
+
+    render();
+
+    $(function() {
+
+      $('input:checkbox.data-set-control').on('change', function() {
+        var type;
+        $('.btn-group button.btn').each(function() {
+          if ($(this).hasClass('active')) type = $(this).html().toLowerCase();
+        });
+        render();
+      });
+    });
+  </script>
+</body>
+
+</html>

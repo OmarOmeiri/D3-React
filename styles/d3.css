@@ -1,0 +1,47 @@
+.d3-axis-label-bottom,
+.d3-axis-label-top,
+.d3-axis-label-left,
+.d3-axis-label-right{
+  font-size: 1.1em;
+  color: white;
+  fill: white;
+}
+
+.d3-chart-title {
+  font-size: 1.2em;
+  fill: white;
+}
+
+.d3-axis-line-h,
+.d3-axis-line-v {
+  stroke-dasharray: 3 3;
+}
+
+.d3-axis-tick-left {
+  transform: rotate(-30deg)
+}
+
+.d3-axis-label-left {
+  transform: translate(10, 0)
+}
+.d3-tooltip {
+  background-color: white;
+  padding: 1em;
+  color: black
+}
+
+.d3-hover {
+  stroke: white;
+  stroke-width: 2px;
+}
+
+.d3-tooltip {
+  background-color: white;
+  border-radius: 2px;
+  transition: top 0.1s ease, left 0.1s ease;
+}
+
+
+.d3-tick.hidden {
+ opacity: 0 !important;
+}

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+  </head>
+  <body>
+    <div style="font-size: 1.2em;">
+      <input id="toggle-data-1" type="checkbox" checked>
+      <span style="background-color: green">1</span>
+      </input>
+      <input id="toggle-data-2" type="checkbox" checked>
+        <span style="background-color: red">2</span>
+      </input>
+    </div>
+    <div id="chart-area"></div>
+    <script src="main.js"></script>
+    <script type="text/javascript">
+      const input1 = document.getElementById('toggle-data-1')
+      input1.addEventListener('change', (e) => {
+        toggleSeries(1, e.target.checked)
+      })
+      const input2 = document.getElementById('toggle-data-2')
+      input2.addEventListener('change', (e) => {
+        toggleSeries(2, e.target.checked)
+      })
+      // toggleSeries(1, input1.checked)
+      // toggleSeries(2, input2.checked)
+    </script>
+  </body>
+</html>

@@ -1,0 +1,343 @@
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script
+    type="text/javascript"
+    src="https://d3js.org/d3.v3.js"
+  ></script>
+  <style id="compiled-css" type="text/css">
+      .axis path,
+.axis line {
+    fill: none;
+    stroke: black;
+    stroke-width: 2;
+    shape-rendering: crispEdges;
+}
+div.tooltip {
+  position: absolute;
+  text-align: center;
+  width: 60px;
+  height: 28px;
+  padding: 2px;
+  font: 12px sans-serif;
+  background: lightsteelblue;
+  border: 0px;
+  border-radius: 8px;
+  pointer-events: none;
+}
+    
+  </style>
+</head>
+<body>
+    <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+    <script type='text/javascript'>
+// Set the canvas dimensions
+var margin = {top: 30, right: 20, bottom: 70, left: 50},
+    width = 950 - margin.left - margin.right,
+    height = 450 - margin.top - margin.bottom;
+// Set the x and y values
+var x = d3.time.scale().range([0, width]);
+var y = d3.scale.linear().range([height, 0]);
+//Format d.date variable
+var formatTime = d3.time.format("%Y");
+// Define the axes
+var xAxis = d3.svg.axis().scale(x)
+    .orient("bottom").ticks(15);
+var yAxis = d3.svg.axis().scale(y)
+    .orient("left").ticks(10);
+// Define the line
+var dataline = d3.svg.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.data); });
+// Adds the canvas
+var svg = d3.select("body")
+    .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .attr("font", "Arial")
+        .style("font-size","14px")
+    .append("g")
+        .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+// Add a title
+var title = svg.append("text")
+    .attr("x", (width / 2))
+    .attr("y", 0 - (margin.top / 2))
+    .attr("text-anchor", "middle")
+    .style("font-size", "16px")
+    .style("text-decoration", "underline")
+    .text("Climate Change");
+// Add the div for the tooltip
+var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+// Get the data
+var climate_data = "symbol,date,data\n" +
+  "Winter,2006,5.7\n" +
+  "Winter,2007,5\n" +
+  "Winter,2008,5.4\n" +
+  "Winter,2009,4.1\n" +
+  "Winter,2010,3.83\n" +
+  "Winter,2011,3.02\n" +
+  "Spring,1976,11.1\n" +
+  "Spring,1977,10.7\n" +
+  "Spring,1978,9.4\n" +
+  "Spring,1979,10.7\n" +
+  "Spring,1980,10.5\n" +
+  "Spring,1981,10.7\n" +
+  "Spring,1982,9.9\n" +
+  "Spring,1983,10.9\n" +
+  "Spring,1984,11\n" +
+  "Spring,1985,11\n" +
+  "Spring,1986,11.5\n" +
+  "Spring,1987,11.6\n" +
+  "Spring,1988,10.8\n" +
+  "Spring,1989,10.7\n" +
+  "Spring,1990,10.8\n" +
+  "Spring,1991,12.3\n" +
+  "Spring,1992,11\n" +
+  "Spring,1993,11\n" +
+  "Spring,1994,10.6\n" +
+  "Spring,1995,11.4\n" +
+  "Spring,1996,9.7\n" +
+  "Spring,1997,9.8\n" +
+  "Spring,1998,11.5\n" +
+  "Spring,1999,12.5\n" +
+  "Spring,2000,11.8\n" +
+  "Spring,2001,11.5\n" +
+  "Spring,2002,12\n" +
+  "Spring,2003,10.5\n" +
+  "Spring,2004,11.5\n" +
+  "Spring,2005,11\n" +
+  "Spring,2006,12.1\n" +
+  "Spring,2007,11.3\n" +
+  "Spring,2008,11.9\n" +
+  "Spring,2009,11.4\n" +
+  "Spring,2010,13.04\n" +
+  "Spring,2011,11.3\n" +
+  "Summer,1976,18.9\n" +
+  "Summer,1977,19.6\n" +
+  "Summer,1978,18.9\n" +
+  "Summer,1979,19.9\n" +
+  "Summer,1980,19.6\n" +
+  "Summer,1981,20.1\n" +
+  "Summer,1982,19.7\n" +
+  "Summer,1983,19.6\n" +
+  "Summer,1984,19.7\n" +
+  "Summer,1985,20.2\n" +
+  "Summer,1986,19.4\n" +
+  "Summer,1987,19.7\n" +
+  "Summer,1988,19.2\n" +
+  "Summer,1989,19.7\n" +
+  "Summer,1990,19.9\n" +
+  "Summer,1991,20\n" +
+  "Summer,1992,19.1\n" +
+  "Summer,1993,19.9\n" +
+  "Summer,1994,20.1\n" +
+  "Summer,1995,20.3\n" +
+  "Summer,1996,18.7\n" +
+  "Summer,1997,18.8\n" +
+  "Summer,1998,20\n" +
+  "Summer,1999,20.9\n" +
+  "Summer,2000,20.4\n" +
+  "Summer,2001,20.6\n" +
+  "Summer,2002,20.8\n" +
+  "Summer,2003,20.3\n" +
+  "Summer,2004,20\n" +
+  "Summer,2005,20.3\n" +
+  "Summer,2006,20.5\n" +
+  "Summer,2007,20.2\n" +
+  "Summer,2008,20.7\n" +
+  "Summer,2009,19.9\n" +
+  "Summer,2010,20.82\n" +
+  "Summer,2011,20.43\n" +
+  "Fall,1976,9.7\n" +
+  "Fall,1977,11.5\n" +
+  "Fall,1978,12.1\n" +
+  "Fall,1979,12.3\n" +
+  "Fall,1980,10.7\n" +
+  "Fall,1981,10.7\n" +
+  "Fall,1982,12.5\n" +
+  "Fall,1983,12.6\n" +
+  "Fall,1984,12.8\n" +
+  "Fall,1985,12.8\n" +
+  "Fall,1986,12.4\n" +
+  "Fall,1987,11.3\n" +
+  "Fall,1988,11.2\n" +
+  "Fall,1989,11\n" +
+  "Fall,1990,13.1\n" +
+  "Fall,1991,12.4\n" +
+  "Fall,1992,11.2\n" +
+  "Fall,1993,11.9\n" +
+  "Fall,1994,12.9\n" +
+  "Fall,1995,12.9\n" +
+  "Fall,1996,10.9\n" +
+  "Fall,1997,11\n" +
+  "Fall,1998,12.2\n" +
+  "Fall,1999,13.1\n" +
+  "Fall,2000,12.4\n" +
+  "Fall,2001,13.5\n" +
+  "Fall,2002,12\n" +
+  "Fall,2003,12.4\n" +
+  "Fall,2004,12.1\n" +
+  "Fall,2005,12.5\n" +
+  "Fall,2006,13.8\n" +
+  "Fall,2007,13.2\n" +
+  "Fall,2008,12.5\n" +
+  "Fall,2009,12\n" +
+  "Fall,2010,11.56\n" +
+  "Fall,2011,13.45\n" +
+  "Cold water,1984,7.1\n" +
+  "Cold water,1985,6.4\n" +
+  "Cold water,1986,6.3\n" +
+  "Cold water,1987,6.7\n" +
+  "Cold water,1988,6.8\n" +
+  "Cold water,1989,7.6\n" +
+  "Cold water,1990,7.7\n" +
+  "Cold water,1991,7.3\n" +
+  "Cold water,1992,6.9\n" +
+  "Cold water,1993,6.9\n" +
+  "Cold water,1994,6.1\n" +
+  "Cold water,1995,6.4\n" +
+  "Cold water,1996,6.3\n" +
+  "Cold water,1997,6.7\n" +
+  "Cold water,1998,6.8\n" +
+  "Cold water,1999,6.9\n" +
+  "Cold water,2000,6.4\n" +
+  "Cold water,2001,6.2\n" +
+  "Cold water,2002,6.3\n" +
+  "Cold water,2003,5.6\n" +
+  "Cold water,2004,5.9\n" +
+  "Cold water,2005,4.9\n" +
+  "Cold water,2006,4.7\n" +
+  "Cold water,2007,6\n" +
+  "Cold water,2008,6\n" +
+  "Cold water,2009,5.6\n" +
+  "Cold water,2010,6.1\n" +
+  "Cold water,2011,5.9\n" +
+  "Cold water,2012,5.9\n" +
+  "Warm water,1984,6.1\n" +
+  "Warm water,1985,5\n" +
+  "Warm water,1986,4.7\n" +
+  "Warm water,1987,3.6\n" +
+  "Warm water,1988,4\n" +
+  "Warm water,1989,4.1\n" +
+  "Warm water,1990,4.2\n" +
+  "Warm water,1991,4.7\n" +
+  "Warm water,1992,4.7\n" +
+  "Warm water,1993,3.8\n" +
+  "Warm water,1994,4.6\n" +
+  "Warm water,1995,4.1\n" +
+  "Warm water,1996,4.8\n" +
+  "Warm water,1997,5.2\n" +
+  "Warm water,1998,5.2\n" +
+  "Warm water,1999,5.8\n" +
+  "Warm water,2000,6.2\n" +
+  "Warm water,2001,5.3\n" +
+  "Warm water,2002,7.5\n" +
+  "Warm water,2003,5.7\n" +
+  "Warm water,2004,5.2\n" +
+  "Warm water,2005,4.6\n" +
+  "Warm water,2006,5.8\n" +
+  "Warm water,2007,5.9\n" +
+  "Warm water,2008,6\n" +
+  "Warm water,2009,5.3\n" +
+  "Warm water,2010,6\n" +
+  "Warm water,2011,6.5\n" +
+  "Warm water,2012,8"
+data = d3.csv.parse(climate_data);
+data.forEach(function(d) {
+    d.date = new Date(+d.date,0,1);
+    d.data = +d.data;
+});
+// Nest the entries by symbol
+var dNest = d3.nest()
+  .key(function(d) {return d.symbol;})
+  .entries(data);
+// set the colour scale
+var color = d3.scale.category10();
+// Scale the range of the data
+x.domain(d3.extent(data, function(d) { return d.date; }));
+y.domain([0, d3.max(data, function(d) { return d.data; })]);
+// spacing for the legend
+legendSpace = width/dNest.length;
+// Add the X Axis
+svg.append("g")
+  .attr("class", "x axis")
+  .attr("transform", "translate(0," + height + ")")
+  .call(xAxis);
+// Add the Y Axis
+svg.append("g")
+  .attr("class", "y axis")
+  .call(yAxis);
+// Loop through each symbol / key
+svg.selectAll("path.line")
+  .data(dNest)
+    .enter().append('path')
+    .attr("class", "line")
+    .style("stroke", function(d) { // Add the colours dynamically
+        return color(d.key);
+    })
+    .attr("id", function(d) {
+        return 'tag'+d.key.replace(/\s+/g, ''); // assign ID
+    })
+    .attr("stroke-width", 2)
+    .attr("fill","none")
+    .attr("d", function (d) {
+        return dataline(d.values);
+    });
+// Add the dots for the tooltip
+svg.selectAll("dot")
+    .data(data)
+  .enter().append("circle")
+    .attr("r", 2)
+    .attr("cx", function(d) { return x(d.date); })
+    .attr("cy", function(d) { return y(d.data); })
+    .style("fill", function(d) {return color(d.symbol)})
+    .attr("id", function (d) {
+        return 'tag'+d.symbol.replace(/\s+/g, '');
+    })
+    .on("mouseover", function(d) {
+        div.transition()
+            .duration(200)
+            .style("opacity", .9);
+        div .html("Year: " + formatTime(d.date) + "<br/>"  + d.data)
+            .style("left", (d3.event.pageX) + "px")
+            .style("top", (d3.event.pageY - 28) + "px");
+        })
+    .on("mouseout", function(d) {
+        div.transition()
+            .duration(500)
+            .style("opacity", 0);
+    });
+// Add the Legend
+svg.selectAll("text.legend")
+    .data(dNest)
+  .enter().append("text")
+    .attr("x", function(d, i) {
+       return (legendSpace/2)+i*legendSpace  // space legend
+    })
+    .attr("y", height + (margin.bottom/2)+ 5)
+    .attr("class", "legend")    // style the legend
+    .style("font-size","15px")  // Change the font size
+    .style("font-weight", "bold") // Change the font to bold
+    .style("text-anchor", "middle") // center the legend
+    .style("fill", function(d) { // Add the colours dynamically
+        return d.color = color(d.key); })
+    .on("click", function(d){
+        // Determine if current line is visible
+        var active   = d.active ? false : true,
+        newOpacity = active ? 0 : 1;
+        // Hide or show the elements based on the ID
+        d3.select("#tag"+d.key.replace(/\s+/g, ''))
+            .transition().duration(100)
+            .style("opacity", newOpacity);
+        // Update whether or not the elements are active
+        d.active = active;
+        })
+    .text(function(d) {
+      return d.key;
+    });
+  </script>
+</body>
+</html>
