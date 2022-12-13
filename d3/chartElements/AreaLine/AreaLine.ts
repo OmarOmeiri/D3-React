@@ -24,6 +24,10 @@ import {
   ID3TooltipData,
 } from '../../types';
 import D3MouseRect from '../Mouse/MouseRect';
+import {
+  D3AreaUnderCurve,
+  sortSeriesByAUC,
+} from './helpers/AUC';
 import { D3AreaLineClasses } from './helpers/classes';
 import { filterAreaLineTooltipValues } from './helpers/tooltip';
 
@@ -146,7 +150,12 @@ D extends Record<string, unknown>,
     this.type = type;
     this.defaultAttrs = defaultAttrs(this.type);
 
-    this.series = series;
+    if (this.type === 'area') {
+      this.series = sortSeriesByAUC(data, series, Array.from(new Set(series.map((s) => s.yKey))));
+    } else {
+      this.series = series;
+    }
+
     this.alpha = alpha;
     this.transitionMs = transitionMs || 250;
     this.withDots = withDots ?? true;
