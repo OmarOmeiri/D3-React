@@ -10,6 +10,12 @@ export const D3Classes = {
       left: 'd3-axis-g-left',
       right: 'd3-axis-g-right',
     },
+    tooltip: {
+      x: 'd3-axis-x-tooltip',
+      y: 'd3-axis-y-tooltip',
+      foreignObjectX: 'd3-axis-x-f-obj',
+      foreignObjectY: 'd3-axis-y-f-obj',
+    },
     labels: {
       group: {
         bottom: 'd3-axis-label-bottom-g',
@@ -62,6 +68,7 @@ export const D3Classes = {
     },
     violin: {
       violin: 'd3-violin',
+      allViolinsGroup: 'd3-violins-g',
       violinGroup: 'd3-violin-g',
     },
     title: {
@@ -75,6 +82,8 @@ export const D3Classes = {
     mouseHorizontalLine: 'd3-mouse-h-line',
     mouseRect: 'd3-mouse-rect',
     mouseEventsGroup: 'd3-mouse-g',
+    crossHairVertical: 'd3-crosshair-v',
+    crossHairHorizontal: 'd3-crosshair-h',
   },
   tooltip: 'd3-tooltip',
 };

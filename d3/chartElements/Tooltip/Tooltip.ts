@@ -1,11 +1,11 @@
-import { pointer } from 'd3';
-
 import type D3Chart from '../../Chart';
+import { D3GetMousePosition } from '../Mouse/getMousePosition';
 
 export interface ID3Tooltip {
   chart: D3Chart
   dx?: number,
   dy?: number,
+  position?: {x: number, y: number}
   onMouseMove: (e: any, x: number, y: number) => void
   onMouseOut: (e: any) => void
   onMouseOver?: (e: any) => void
@@ -38,12 +38,16 @@ class Tooltip {
 
   init() {
     this.chart.svg
-      .on('mousemove', (e) => {
-        const [x, y] = pointer(e);
-        this.onMouseMove(e, x + this.dx, y + this.dy);
+      .on('mousemove.tooltip', (e) => {
+        const [x, y] = D3GetMousePosition(e, this.chart);
+        this.onMouseMove(
+          e,
+          x + this.dx + this.chart.dims.margin.left,
+          y + this.dy + this.chart.dims.margin.top,
+        );
       })
-      .on('mouseover', this.onMouseOver)
-      .on('mouseout', this.onMouseOut);
+      .on('mouseover.tooltip', this.onMouseOver)
+      .on('mouseout.tooltip', this.onMouseOut);
   }
 }
 

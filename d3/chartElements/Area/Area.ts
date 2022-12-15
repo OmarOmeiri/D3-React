@@ -3,33 +3,9 @@ import AreaLine, { ID3AreaLine } from '../AreaLine/AreaLine';
 class Area<
 D extends Record<string, unknown>,
 > extends AreaLine<D> {
-  constructor({
-    chart,
-    data,
-    filter,
-    xScale,
-    yScale,
-    series,
-    alpha,
-    transitionMs,
-    withDots,
-    mouseOut,
-    mouseMove,
-    mouseOver,
-  }: ID3AreaLine<D>) {
+  constructor(params: Omit<ID3AreaLine<D>, 'type'>) {
     super({
-      chart,
-      data,
-      filter,
-      xScale,
-      yScale,
-      series,
-      alpha,
-      transitionMs,
-      withDots,
-      mouseOut,
-      mouseMove,
-      mouseOver,
+      ...params,
       type: 'area',
     });
   }

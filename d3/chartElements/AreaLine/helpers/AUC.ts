@@ -4,7 +4,7 @@ import {
 } from 'lullo-utils/Arrays';
 import { trapezoidArea } from 'lullo-utils/Math';
 
-import type { D3NumberOrStringKey } from '../../../types';
+import type { D3NumberStringOrDateKey } from '../../../types';
 import type { ID3AreaLineSerie } from '../AreaLine';
 
 export const D3AreaUnderCurve = <
@@ -38,7 +38,7 @@ T extends Record<string, unknown>,
 >(
     data: Array<T>,
     series: ID3AreaLineSerie<T>[],
-    keys: D3NumberOrStringKey<T>[],
+    keys: D3NumberStringOrDateKey<T>[],
     approxCoef = data.length / 5,
   ) => {
   const AUCs = D3AreaUnderCurve(data, keys, approxCoef);

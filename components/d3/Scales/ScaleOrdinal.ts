@@ -3,7 +3,6 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import uniqid from 'uniqid';
 import D3ScaleOrdinal, { IScaleOrdinal } from '../../../d3/Scales/ScaleOrdinal';
 import { typedMemo } from '../../../utils/react/typedMemo';
 import { useD3Context } from '../context/D3Context';
@@ -17,7 +16,7 @@ D extends Record<string, unknown>,
     scheme,
     domain,
   }: IScaleOrdinal<D>) => {
-  const scaleId = useRef(id || uniqid());
+  const scaleId = useRef(id || 'ordinal-scale');
   const {
     chart,
     scales,

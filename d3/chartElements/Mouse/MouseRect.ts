@@ -1,76 +1,133 @@
-import { Selection } from 'd3';
 import { D3Classes } from '../../consts/classes';
-import {
-  d3AppendIfNotExists,
-  d3ReplaceIfExists,
-} from '../../helpers/d3Exists';
+import { d3AppendIfNotExists } from '../../helpers/d3Exists';
 
 import type D3Chart from '../../Chart';
 
-type EvtHandlers = (e: any) => void;
-
 interface ID3MouseEvts {
-  mouseMove?: EvtHandlers;
-  mouseOver?: EvtHandlers;
-  mouseOut?: EvtHandlers;
+  mouseMove?: (e: any, positionCallback: (x: number, y: number) => void) => void;
 }
 
+const isMouseWithinBounds = (x: number, y: number, chart: D3Chart) => {
+  if (y <= 0 || y >= chart.dims.innerDims.height) return false;
+  if (x <= 0 || x >= chart.dims.innerDims.width) return false;
+  return true;
+};
+
 class D3MouseRect {
-  public mouseG!: Selection<SVGGElement, unknown, null, undefined>;
   constructor(
     private chart: D3Chart,
     private withLine: boolean = true,
   ) {}
 
-  appendMouseRect({
+  setEvents({
     mouseMove = () => {},
-    mouseOut = () => {},
-    mouseOver = () => {},
   }: ID3MouseEvts = {}) {
-    this.appendGroup();
     if (this.withLine) this.appendLine();
 
-    const mouseRect = d3ReplaceIfExists(
-      this.mouseG.select(`.${D3Classes.events.mouseRect}`),
-      () => (
-        this.mouseG
-          .append('rect')
-          .attr('class', D3Classes.events.mouseRect)
-          .attr('width', this.chart.dims.innerDims.width)
-          .attr('height', this.chart.dims.innerDims.height)
-          .attr('fill', 'none')
-          .attr('pointer-events', 'all')
-          .attr('transform', `translate(${this.chart.dims.margin.left}, ${this.chart.dims.margin.top})`)
-      ),
-      { createIfNotExist: true },
-    );
-
-    mouseRect
-      .on('mouseout', mouseOut)
-      .on('mouseover', mouseOver)
-      .on('mousemove', mouseMove);
+    this.chart.svg
+      .on('mouseout', () => {
+        this.removeMouseElements();
+      })
+      .on('mouseover', () => {
+        this.mouseOver();
+      })
+      .on('mousemove', (e) => mouseMove(e, (x, y) => {
+        if (!isMouseWithinBounds(x, y, this.chart)) {
+          this.removeMouseElements();
+          return;
+        }
+        this.mouseMove(x, y);
+      }));
   }
 
-  updateRect() {
-    this.mouseG
-      .select(`.${D3Classes.events.mouseRect}`)
-      .attr('class', D3Classes.events.mouseRect)
-      .attr('width', this.chart.dims.innerDims.width)
-      .attr('height', this.chart.dims.innerDims.height)
-      .attr('fill', 'none')
-      .attr('pointer-events', 'all')
-      .attr('transform', `translate(${this.chart.dims.margin.left}, ${this.chart.dims.margin.top})`);
+  private removeMouseElements() {
+    this.chart.chart
+      .select(`.${D3Classes.events.crossHairHorizontal}`)
+      .style('opacity', '0');
+
+    this.chart.chart
+      .select(`.${D3Classes.events.crossHairVertical}`)
+      .style('opacity', '0');
+
+    this.chart.chart
+      .select(`.${D3Classes.events.mouseVerticalLine}`)
+      .style('opacity', '0');
+
+    this.chart.chart.select(`.${D3Classes.axis.tooltip.y}`)
+      .style('opacity', '0');
+
+    this.chart.chart.select(`.${D3Classes.axis.tooltip.x}`)
+      .style('opacity', '0');
   }
 
-  private appendGroup() {
-    this.mouseG = d3AppendIfNotExists(
-      this.chart.svg.select<SVGGElement>(`.${D3Classes.events.mouseEventsGroup}`),
-      () => (
-        this.chart.svg
-          .append('g')
-          .attr('class', D3Classes.events.mouseEventsGroup)
-      ),
-    );
+  private getAxisTooltipSize(type: 'x' | 'y') {
+    const node = this.chart.chart
+      .select<HTMLDivElement>(`.${D3Classes.axis.tooltip[type]}`)
+      .node();
+    return {
+      width: node?.offsetWidth || 0,
+      height: node?.offsetHeight || 0,
+    };
+  }
+
+  private mouseOver() {
+    this.chart.chart
+      .select(`.${D3Classes.events.crossHairHorizontal}`)
+      .style('opacity', '1');
+
+    this.chart.chart
+      .select(`.${D3Classes.events.crossHairVertical}`)
+      .style('opacity', '1');
+
+    this.chart.chart
+      .select(`.${D3Classes.events.mouseVerticalLine}`)
+      .style('opacity', '1');
+
+    this.chart.chart.select(`.${D3Classes.axis.tooltip.y}`)
+      .style('opacity', '1');
+
+    this.chart.chart.select(`.${D3Classes.axis.tooltip.x}`)
+      .style('opacity', '1');
+  }
+
+  private mouseMove(x: number, y: number) {
+    this.chart.chart
+      .select(`.${D3Classes.events.mouseVerticalLine}`)
+      .attr('x1', x)
+      .attr('y1', 0)
+      .attr('x2', x)
+      .attr('y2', this.chart.dims.innerDims.height);
+
+    this.chart.chart
+      .select(`.${D3Classes.events.crossHairVertical}`)
+      .attr('x1', x)
+      .attr('y1', 0)
+      .attr('x2', x)
+      .attr('y2', this.chart.dims.innerDims.height);
+
+    this.chart.chart
+      .select(`.${D3Classes.events.crossHairHorizontal}`)
+      .attr('x1', 0)
+      .attr('y1', y)
+      .attr('x2', this.chart.dims.innerDims.width)
+      .attr('y2', y);
+
+    this.getAxisTooltipSize('x');
+
+    this.chart.chart
+      .select(`.${D3Classes.axis.tooltip.foreignObjectX}`)
+      .attr('transform', `translate(${
+        x - (this.getAxisTooltipSize('x').width / 2)
+      }, ${
+        this.chart.dims.innerDims.height + 6
+      })`);
+
+    const yTooltipSize = this.getAxisTooltipSize('y');
+    this.chart.chart
+      .select(`.${D3Classes.axis.tooltip.foreignObjectY}`)
+      .attr('transform', `translate(${
+        -yTooltipSize.height - 6
+      }, ${y + (yTooltipSize.width / 2)}) rotate(-90)`);
   }
 
   private appendLine() {
@@ -78,13 +135,77 @@ class D3MouseRect {
       this.chart.chart.select(`.${D3Classes.events.mouseVerticalLine}`),
       () => (
         this.chart.chart
-          .append('line') // create vertical line to follow mouse
+          .append('line')
           .attr('class', D3Classes.events.mouseVerticalLine)
           .style('stroke', '#A9A9A9')
-          .style('stroke-width', 3)
+          .style('stroke-width', 2)
           .style('opacity', '1')
       ),
     );
+  }
+
+  appendCrosshair() {
+    d3AppendIfNotExists(
+      this.chart.chart.select(`.${D3Classes.events.crossHairVertical}`),
+      () => (
+        this.chart.chart
+          .append('line')
+          .attr('class', D3Classes.events.crossHairVertical)
+          .style('stroke', '#A9A9A9')
+          .style('stroke-width', 1)
+          .style('opacity', '1')
+          .attr('stroke-dasharray', '6 4')
+      ),
+    );
+
+    d3AppendIfNotExists(
+      this.chart.chart.select(`.${D3Classes.events.crossHairHorizontal}`),
+      () => (
+        this.chart.chart
+          .append('line')
+          .attr('class', D3Classes.events.crossHairHorizontal)
+          .style('stroke', '#A9A9A9')
+          .style('stroke-width', 1)
+          .style('opacity', '1')
+          .attr('stroke-dasharray', '6 4')
+      ),
+    );
+
+    d3AppendIfNotExists(
+      this.chart.chart.select(`.${D3Classes.axis.tooltip.x}`),
+      () => (
+        this.chart.chart
+          .append('foreignObject')
+          .attr('class', D3Classes.axis.tooltip.foreignObjectX)
+          .attr('width', '1')
+          .attr('height', '1')
+          .append('xhtml:div')
+          .style('opacity', '0')
+          .attr('class', D3Classes.axis.tooltip.x)
+      ),
+    );
+
+    d3AppendIfNotExists(
+      this.chart.chart.select(`.${D3Classes.axis.tooltip.y}`),
+      () => (
+        this.chart.chart
+          .append('foreignObject')
+          .attr('class', D3Classes.axis.tooltip.foreignObjectY)
+          .attr('width', '1')
+          .attr('height', '1')
+          .append('xhtml:div')
+          .style('opacity', '0')
+          .attr('class', D3Classes.axis.tooltip.y)
+      ),
+    );
+  }
+
+  setCrosshairText(x: string, y: string) {
+    this.chart.chart.select(`.${D3Classes.axis.tooltip.x}`)
+      .html(`<span>${x}</span>`);
+
+    this.chart.chart.select(`.${D3Classes.axis.tooltip.y}`)
+      .html(`<span>${y}</span>`);
   }
 }
 

@@ -6,7 +6,8 @@ import {
   ID3ShapeAttrs,
   ID3TooltipData,
 } from '../../../types';
-import {
+
+import type {
   AreaLineData,
   ID3AreaLineSerie,
 } from '../AreaLine';

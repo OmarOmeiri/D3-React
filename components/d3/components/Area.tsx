@@ -2,8 +2,9 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import Area, { ID3Area } from '../../../d3/chartElements/Area/Area';
-import useRenderTrace from '../../../hooks/useRenderTrace';
+import Area from '../../../d3/chartElements/Area/Area';
+import { ID3AreaLine } from '../../../d3/chartElements/AreaLine/AreaLine';
+import { typedMemo } from '../../../utils/react/typedMemo';
 import {
   D3ContextGetScales,
   useD3Context,
@@ -12,11 +13,11 @@ import {
 import type { D3ScaleLinear } from '../../../d3/Scales';
 import type D3ScaleBand from '../../../d3/Scales/ScaleBand';
 
-type ReactAreaProps<
+type ReactD3AreaProps<
 D extends Record<string, unknown>,
 > = Expand<Omit<
-ID3Area<D>
-, 'xScale' | 'colorScale' | 'yScale' | 'chart'
+ID3AreaLine<D>
+, 'xScale' | 'colorScale' | 'yScale' | 'chart' | 'type'
 > & {
   yAxisId?: string,
   xAxisId?: string,
@@ -48,7 +49,7 @@ const getAreaScales = (
   };
 };
 
-const ReactD3Area = <
+const ReactD3Area = typedMemo(<
 D extends Record<string, unknown>,
 >({
     data,
@@ -60,10 +61,13 @@ D extends Record<string, unknown>,
     mouseOut,
     mouseMove,
     mouseOver,
+    disableZoom,
+    crosshair,
     yAxisId,
     xAxisId,
     colorScaleId,
-  }: ReactAreaProps<D>) => {
+    formatCrosshair,
+  }: ReactD3AreaProps<D>) => {
   const area = useRef<Area<D> | null>(null);
   const {
     chart,
@@ -72,26 +76,6 @@ D extends Record<string, unknown>,
     margin,
     getScale,
   } = useD3Context();
-
-  useRenderTrace('area', {
-    data,
-    filter,
-    series,
-    alpha,
-    transitionMs,
-    withDots,
-    mouseOut,
-    mouseMove,
-    mouseOver,
-    yAxisId,
-    xAxisId,
-    colorScaleId,
-    chart,
-    dims,
-    scales,
-    margin,
-    getScale,
-  });
 
   useEffect(() => {
     if (chart && scales.length) {
@@ -113,6 +97,9 @@ D extends Record<string, unknown>,
         withDots,
         filter,
         transitionMs,
+        disableZoom,
+        crosshair,
+        formatCrosshair,
         mouseOut,
         mouseMove,
         mouseOver,
@@ -126,7 +113,10 @@ D extends Record<string, unknown>,
     series,
     filter,
     withDots,
+    formatCrosshair,
     transitionMs,
+    disableZoom,
+    crosshair,
     mouseOut,
     mouseMove,
     mouseOver,
@@ -151,6 +141,23 @@ D extends Record<string, unknown>,
   ]);
 
   return null;
-};
+}, (prev, next) => {
+  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof ReactD3AreaProps<any>)[];
+  for (const key of keys) {
+    if (key === 'formatCrosshair') {
+      if (
+        prev?.formatCrosshair?.x !== next?.formatCrosshair?.x
+        || prev?.formatCrosshair?.y !== next?.formatCrosshair?.y
+      ) return false;
+      continue;
+    }
+
+    if (prev[key] !== next[key]) {
+      return false;
+    }
+  }
+
+  return true;
+});
 
 export default ReactD3Area;

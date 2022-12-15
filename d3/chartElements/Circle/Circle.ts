@@ -20,6 +20,8 @@ import {
   ID3CircleAttrs,
   ID3Events,
 } from '../../types';
+import { D3FormatCrosshair } from '../helpers/formatCrosshair';
+import { D3GetMousePosition } from '../Mouse/getMousePosition';
 import D3MouseRect from '../Mouse/MouseRect';
 
 import type D3Chart from '../../Chart';
@@ -53,9 +55,15 @@ D extends Record<string, unknown>,
   yKey: D3NumberOrStringKey<D>,
   rKey?: D3NumberKey<D>,
   radiusNorm?: {max?: number, min?: number}
-  dataJoinKey?: keyof D | (keyof D)[]
+  dataJoinKey?: (d: D) => string;
   transitionMs?: number
+  disableZoom?: boolean,
   filter?: (d: D) => boolean
+  crosshair?: boolean,
+  formatCrosshair?: {
+    x?: (val: string | number | Date) => string
+    y?: (val: string | number | Date) => string
+  }
 }
 
 const DEFAULT_RADIUS_NORM = {
@@ -79,7 +87,7 @@ D extends Record<string, unknown>,
   private radius?: string | ((d: D, index: number) => string);
   private radiusNorm: {min: number, max: number};
   private radiusScaler: (n: number) => number;
-  private dataJoinKey?: (keyof D)[];
+  private dataJoinKey?: (d: D) => string;
   private fill: ID3CircleAttrs<D>['fill'];
   private fillOpacity: ID3CircleAttrs<D>['fillOpacity'];
   private stroke: ID3CircleAttrs<D>['stroke'];
@@ -87,10 +95,16 @@ D extends Record<string, unknown>,
   private strokeOpacity: ID3CircleAttrs<D>['strokeOpacity'];
   private transitionMs: number;
   private mouseRect: D3MouseRect;
+  private disableZoom: boolean;
+  private crosshair: boolean;
   private filter?: (d: D, index: number) => boolean;
   private mouseOut: Required<ID3Events<D>>['mouseOut'];
   private mouseOver: Required<ID3Events<D>>['mouseOver'];
   private mouseMove: Required<ID3Events<D>>['mouseMove'];
+  private formatCrosshair?: {
+    x?: (val: string | number | Date) => string
+    y?: (val: string | number | Date) => string
+  };
 
   constructor({
     chart,
@@ -106,12 +120,15 @@ D extends Record<string, unknown>,
     radius,
     radiusNorm = DEFAULT_RADIUS_NORM,
     dataJoinKey,
+    disableZoom = false,
+    crosshair = true,
     fill,
     fillOpacity,
     stroke,
     strokeWidth,
     strokeOpacity,
-    transitionMs,
+    formatCrosshair,
+    transitionMs = 200,
     mouseOut,
     mouseMove,
     mouseOver,
@@ -135,32 +152,18 @@ D extends Record<string, unknown>,
       ...DEFAULT_RADIUS_NORM,
     };
     this.radiusScaler = (n: number) => n;
-    this.transitionMs = transitionMs || 200;
-    this.dataJoinKey = dataJoinKey
-      ? [dataJoinKey].flat() as (keyof D)[]
-      : undefined;
+    this.transitionMs = transitionMs;
+    this.dataJoinKey = dataJoinKey;
     this.filter = filter;
-
+    this.formatCrosshair = formatCrosshair;
+    this.disableZoom = disableZoom;
+    this.crosshair = crosshair;
     this.mouseRect = new D3MouseRect(this.chart);
     this.mouseOut = mouseOut || (() => {});
     this.mouseMove = mouseMove || (() => {});
     this.mouseOver = mouseOver || (() => {});
     this.setData(data);
     this.update(data);
-  }
-
-  set keys({
-    xKey,
-    yKey,
-    colorKey,
-  }: {
-    xKey?: D3NumberOrStringKey<D>,
-    yKey?: D3NumberOrStringKey<D>,
-    colorKey?: D3StringKey<D>
-  }) {
-    if (xKey) this.xKey = xKey;
-    if (yKey) this.yKey = yKey;
-    if (colorKey) this.colorKey = colorKey;
   }
 
   private setData(data: D3DataCatgAndLinear<D>[]) {
@@ -173,15 +176,6 @@ D extends Record<string, unknown>,
       })
       : (n: number) => n;
   }
-
-  // private getPosition(v: any, type: 'x' | 'y') {
-  //   const scale = this.getScale(type);
-  //   return Number(scale(v)) + (
-  //     'bandwidth' in scale
-  //       ? (scale.bandwidth() / 2)
-  //       : 0
-  //   );
-  // }
 
   private getPosition(v: any, scale: D3CircleScales<D>) {
     return Number(scale(v)) + (
@@ -206,7 +200,6 @@ D extends Record<string, unknown>,
 
     const attr = this[key];
     if (!attr) {
-      console.warn(`No attribute: ${key} found for Circle`);
       return () => '';
     }
 
@@ -216,26 +209,44 @@ D extends Record<string, unknown>,
   }
 
   private mouseEventHandlers() {
-    this.mouseRect.appendMouseRect();
+    if (this.crosshair) {
+      this.mouseRect.appendCrosshair();
+    }
+    this.mouseRect.setEvents({
+      mouseMove: (e, mouseCallback) => {
+        const [x, y] = D3GetMousePosition(e, this.chart);
+        const xVal = this.xScale.invert(x);
+        const yVal = this.yScale.invert(y);
+        const xScaled = this.getPosition(xVal, this.xScale.getScale());
+        const yScaled = this.getPosition(yVal, this.yScale.getScale());
+        mouseCallback(xScaled, yScaled);
 
-    const zoom = D3Zoom<SVGGElement, unknown>()
-      .scaleExtent([1, 20])
-      .extent([[
-        0,
-        0,
-      ], [
-        this.chart.dims.innerDims.width,
-        this.chart.dims.innerDims.height,
-      ]])
-      .translateExtent([[0, 0], [this.chart.dims.innerDims.width, this.chart.dims.innerDims.height]])
-      .on('zoom', (e) => {
-        D3ZoomHelper(e, this.xScale);
-        D3ZoomHelper(e, this.yScale);
-        this.updateScales({ transition: 0 });
-      });
+        this.mouseRect.setCrosshairText(
+          this.formatCrosshair?.x ? this.formatCrosshair.x(xVal as any) : D3FormatCrosshair(xVal),
+          this.formatCrosshair?.y ? this.formatCrosshair.y(yVal as any) : D3FormatCrosshair(yVal),
+        );
+      },
+    });
+    if (!this.disableZoom) {
+      const zoom = D3Zoom<SVGSVGElement, unknown>()
+        .scaleExtent([1, 20])
+        .extent([[
+          0,
+          0,
+        ], [
+          this.chart.dims.innerDims.width,
+          this.chart.dims.innerDims.height,
+        ]])
+        .translateExtent([[0, 0], [this.chart.dims.innerDims.width, this.chart.dims.innerDims.height]])
+        .on('zoom', (e) => {
+          D3ZoomHelper(e, this.xScale);
+          D3ZoomHelper(e, this.yScale);
+          this.updateScales(0);
+        });
 
-    this.mouseRect.mouseG
-      .call(zoom);
+      this.chart.svg
+        .call(zoom);
+    }
   }
 
   private circleStart(circles: typeof this.circles) {
@@ -286,12 +297,11 @@ D extends Record<string, unknown>,
     this.circles = this.chart.chart
       .selectAll<SVGCircleElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.circle.circle}`)
       .data(this.data, (d, i) => {
-        if (this.dataJoinKey) return this.dataJoinKey.map((k) => `${(d as any)[k]}`).join('-');
+        if (this.dataJoinKey) return this.dataJoinKey(d);
         return i;
       });
 
     this.exit();
-    // this.pattern(this.circles);
     this.circleEnd(
       this.circles
         .transition()
@@ -325,11 +335,7 @@ D extends Record<string, unknown>,
       .remove();
   }
 
-  updateScales({ x, y, transition }: {
-    x?: D3CircleScales<D>,
-    y?: D3CircleScales<D>
-    transition?: number,
-  } = {}) {
+  updateScales(transition?: number) {
     this.chart.chart
       .selectAll<BaseType, D3DataCatgAndLinear<D>>(
         `.${D3Classes.chartElements.circle.circle}`,
@@ -340,8 +346,8 @@ D extends Record<string, unknown>,
       .attr('fill-opacity', this.getAttr('fillOpacity'))
       .transition()
       .duration(transition || this.transitionMs)
-      .attr('cy', (d) => this.getPosition(d[this.yKey], y || this.yScale.getScale()))
-      .attr('cx', (d) => this.getPosition(d[this.xKey], x || this.xScale.getScale()))
+      .attr('cy', (d) => this.getPosition(d[this.yKey], this.yScale.getScale()))
+      .attr('cx', (d) => this.getPosition(d[this.xKey], this.xScale.getScale()))
       .attr('r', (d) => {
         const { rKey } = this;
         if (rKey) {

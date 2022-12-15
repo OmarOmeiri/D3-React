@@ -3,7 +3,6 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import uniqid from 'uniqid';
 import { ID3Axis } from '../../../d3/Axes/Axis';
 import { D3DataCatg } from '../../../d3/dataTypes';
 import D3ScaleBand, {
@@ -36,7 +35,7 @@ D extends Record<string, unknown>,
     tickFormat,
   }: ReactD3ScaleBandProps<D>,
   ) => {
-  const scaleId = useRef(id || uniqid());
+  const scaleId = useRef(id || 'band-scale');
   const {
     chart,
     scales,

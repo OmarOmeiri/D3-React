@@ -6,13 +6,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import uniqid from 'uniqid';
 import D3Chart from '../../../d3/Chart';
 import { D3Margins } from '../../../d3/Dimensions/types';
 import { D3Scales } from '../../../d3/Scales/types';
 import { useDebouncedState } from '../../../hooks/useDebouncedState';
 import useResize from '../../../hooks/useResize';
-
-import type D3Axis from '../../../d3/Axes/Axis';
 
 export type D3ContextGetScales = {
   (params: {id: string | undefined, type?: 'x' | 'y', mightNotExist: true}): D3Scales<any> | undefined;
@@ -21,7 +20,9 @@ export type D3ContextGetScales = {
 };
 
 type D3Context = {
+  chartId: string,
   ref: React.MutableRefObject<HTMLDivElement | null>
+  chartOverlayRef: React.MutableRefObject<HTMLDivElement | null>
   refInit: boolean
   chart: D3Chart | null;
   scales: D3Scales<any>[],
@@ -38,7 +39,9 @@ const D3Ctx = React.createContext<D3Context | undefined>(undefined);
 export const D3ContextProvider = ({ children }: {
   children: React.ReactNode
 }) => {
+  const chartId = useRef(uniqid());
   const ref = useRef<HTMLDivElement | null>(null);
+  const chartOverlayRef = useRef<HTMLDivElement | null>(null);
   const dims = useResize(ref);
   const debouncedDims = useDebouncedState(dims, 100);
   const [margin, setMargin] = useState<Partial<D3Margins>>({});
@@ -49,7 +52,9 @@ export const D3ContextProvider = ({ children }: {
   const setRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       ref.current = node;
-      setRefInit(true);
+      if (chartOverlayRef.current) {
+        setRefInit(true);
+      }
     }
   }, []);
 
@@ -59,6 +64,7 @@ export const D3ContextProvider = ({ children }: {
       setChart((oldChart) => {
         if (oldChart) return oldChart;
         return new D3Chart({
+          id: chartId.current,
           ref: chartAreaRef,
           dims: { dims },
         });
@@ -120,7 +126,9 @@ export const D3ContextProvider = ({ children }: {
   }, [scales, getFirstScale]) as D3ContextGetScales;
 
   const ctxValue: D3Context = useMemo(() => ({
+    chartId: chartId.current,
     ref,
+    chartOverlayRef,
     refInit,
     chart,
     scales,
@@ -131,7 +139,6 @@ export const D3ContextProvider = ({ children }: {
     addScale,
     setRef,
   }), [
-    ref,
     refInit,
     chart,
     scales,

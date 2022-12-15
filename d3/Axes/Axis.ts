@@ -47,7 +47,7 @@ const getLabelPosition = (type: D3AxisTypes, dims: D3Dimensions) => {
   }
 };
 
-const checkBands = (scale: ID3Axis['scale'], chart: D3Chart, type: D3AxisTypes) => {
+const omitOverflowingBandScaleTickLines = (scale: ID3Axis['scale'], chart: D3Chart, type: D3AxisTypes) => {
   if (D3IsScaleBand(scale) && type === 'bottom') {
     chart.chart
       .select(`.${D3Classes.axis.group[type]}`)
@@ -144,14 +144,6 @@ class D3Axis {
     this.axisG
       .selectAll('path')
       .attr('clip-path', `url(#${this.chart.chartAreaClipId})`);
-
-    // checkBands(th)
-
-    // if (this.type === 'bottom') {
-    //   this.axisG
-    //     .selectAll('g .tick')
-    //     .attr('opacity', 0);
-    // }
   }
 
   appendLabel() {
@@ -225,10 +217,17 @@ class D3Axis {
     }
 
     this.axisG
+      .selectAll('.tick')
+      .classed('d3-tick', true);
+
+    this.axisG
       .transition()
       .delay(delay)
       .duration(transition)
-      .call(this.axis);
+      .call(this.axis)
+      .on('end', () => {
+        omitOverflowingBandScaleTickLines(scale, this.chart, this.type);
+      });
 
     this.axisG
       .selectAll('.tick text')
@@ -239,15 +238,6 @@ class D3Axis {
       .attr('class', D3Classes.axis.gridLines[this.type]);
 
     this.updateLabel(label);
-
-    checkBands(scale, this.chart, this.type);
-
-    // if (this.type === 'bottom') {
-    //   this.axisG
-    //     .selectAll('g .tick')
-    //     // .remove();
-    //     // .attr('opacity', 0);
-    // }
   }
 }
 export default D3Axis;

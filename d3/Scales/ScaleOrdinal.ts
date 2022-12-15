@@ -2,7 +2,6 @@ import {
   scaleOrdinal,
   ScaleOrdinal,
 } from 'd3';
-import { ID3Axis } from '../Axes/Axis';
 import { D3DataCatg } from '../dataTypes';
 import { D3StringKey } from '../types';
 
@@ -34,6 +33,10 @@ D extends Record<string, unknown>,
     this.scheme = params.scheme || this.scheme;
     this.scale = scaleOrdinal(this.scheme)
       .domain(params.domain as any);
+  }
+
+  getScale() {
+    return this.scale;
   }
 }
 

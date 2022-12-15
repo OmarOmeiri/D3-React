@@ -8,3 +8,10 @@ export const formatCurrency = (
     currency,
   }).format(value)
 );
+
+export const formatDate = (
+  value: Date,
+  locale = 'pt-BR',
+) => (
+  Intl.DateTimeFormat(locale).format(value)
+);

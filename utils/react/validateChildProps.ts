@@ -15,7 +15,7 @@ K extends string
     }
     propArray.forEach((p) => {
       if (!(p in child.props)) {
-        throw new Error(`Child element: "${child.type}" must accept a "${p}" prop.`);
+        throw new Error(`Child element: "${child.type}" must have a "${p}" prop.`);
       }
     });
   });

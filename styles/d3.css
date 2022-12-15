@@ -32,8 +32,19 @@
 
 .d3-hover {
   stroke: white;
-  stroke-width: 2px;
+  animation: addHoverStroke 0.1s forwards;
 }
+
+@keyframes addHoverStroke {
+  from {
+    stroke-width: 0;
+  }
+
+  to {
+    stroke-width: 2px;
+  }
+}
+
 
 .d3-tooltip {
   background-color: white;
@@ -44,4 +55,62 @@
 
 .d3-tick.hidden {
  opacity: 0 !important;
+}
+
+.d3-axis-x-tooltip,
+.d3-axis-y-tooltip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 35px;
+  background-color: white;
+  color: black;
+  border-radius: 2px;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.d3-axis-y-tooltip {
+  /* transform-origin: center;
+  transform: rotate(-90deg); */
+}
+
+
+.d3-axis-y-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 99%;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: #fff transparent transparent transparent;
+}
+
+.d3-axis-x-tooltip::after {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #fff transparent;
+}
+
+.d3-axis-x-tooltip span,
+.d3-axis-y-tooltip span {
+  display: inline-grid;
+  align-items: center;
+  text-align: center;
+  padding: 0 0.5em;
+  white-space: nowrap;
+  width: fit-content;
+  min-width: 50px;
+}
+
+.d3-axis-x-f-obj,
+.d3-axis-y-f-obj {
+  overflow: visible;
 }

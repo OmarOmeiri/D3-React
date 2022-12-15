@@ -1,0 +1,44 @@
+.TooltipArrowUnder::after {
+  content: "";
+  position: absolute;
+  top: 99%;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: #fff transparent transparent transparent;
+}
+
+.TooltipArrowLeft::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 6px);
+  left: -6px;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent #fff transparent transparent ;
+}
+
+.TooltipArrowTop::after {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #fff transparent;
+}
+
+.TooltipArrowRight::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 6px);
+  left: calc(99% + 6px);
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent transparent #fff;
+}
+

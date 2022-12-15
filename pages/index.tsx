@@ -19,18 +19,22 @@ import React, {
 import ReactD3Chart from '../components/d3/Chart/Chart';
 import ReactD3Area from '../components/d3/components/Area';
 import ReactD3Bar from '../components/d3/components/Bar';
+import D3ChartOverlay, { D3ChartOverlayElement } from '../components/d3/components/ChartOverlay';
 import ReactD3Circle from '../components/d3/components/Circle';
 import ReactD3CustomTooltip from '../components/d3/components/CustomTooltip';
 import ReactD3Legend, { D3LegendItem } from '../components/d3/components/Legend';
 import ReactD3Line from '../components/d3/components/Line';
 import ReactD3Title from '../components/d3/components/Title';
 import ReactD3Tooltip from '../components/d3/components/Tooltip';
+import ReactD3Violin from '../components/d3/components/Violin';
 import ReactD3ScaleBand from '../components/d3/Scales/ScaleBand';
+import ReactD3ScaleColorSequential from '../components/d3/Scales/ScaleColorSequential';
 import ReactD3ScaleLinear from '../components/d3/Scales/ScaleLinear';
 import ReactD3ScaleLog from '../components/d3/Scales/ScaleLog';
 import ReactD3ScaleOrdinal from '../components/d3/Scales/ScaleOrdinal';
 import ReactD3ScaleTime from '../components/d3/Scales/ScaleTime';
-import { ID3LineSerie } from '../d3/chartElements/Line/Line';
+import { ID3AreaLineSerie } from '../d3/chartElements/AreaLine/AreaLine';
+import { ID3ViolinSerie } from '../d3/chartElements/Violin/Violin';
 import { D3DataLinear } from '../d3/dataTypes';
 import { D3LinearDomain } from '../d3/Scales/types';
 import {
@@ -44,7 +48,7 @@ import { revenues } from '../data/revenues';
 import timeValue from '../data/timeValue.json';
 import { Gapminder } from '../data/types';
 import styles from '../styles/Home.module.css';
-import { formatCurrency } from '../utils/formatCurrency';
+import { formatCurrency } from '../utils/format';
 
 dayjs.extend(dayjsFormat);
 
@@ -157,19 +161,30 @@ const Bar = () => {
   const [data, setData] = useState(revenues);
   const flag = useRef(true);
   const [yKey, setYkey] = useState<'profit' | 'revenue'>('profit');
+  const [tooltipState, setTooltipState] = useState<{data: typeof data[number], position: {x: number, y: number}} | null>(null);
 
   const changeK = () => {
-    // setYkey((k) => {
-    //   if (k === 'profit') return 'revenue';
-    //   return 'profit';
-    // });
-    flag.current = !flag.current;
-    setData(
-      flag.current
-        ? revenues
-        : revenues.slice(1),
-    );
+    setYkey((k) => {
+      if (k === 'profit') return 'revenue';
+      return 'profit';
+    });
+    // flag.current = !flag.current;
+    // setData(
+    //   flag.current
+    //     ? revenues
+    //     : revenues.slice(1),
+    // );
   };
+
+  console.log(data);
+
+  const setTooltipData = useCallback((d: typeof data[number], pos: {x: number, y: number}) => {
+    setTooltipState({ data: d, position: pos });
+  }, []);
+
+  const removeTooltipData = useCallback(() => {
+    setTooltipState(null);
+  }, []);
 
   return (
     <>
@@ -197,16 +212,36 @@ const Bar = () => {
               type='bottom'
               label='Mês'
             />
+            <ReactD3ScaleColorSequential
+              data={data}
+              id='colorScale'
+              dataKey={yKey}
+              domain={['dataMin', 'dataMax']}
+              range={['red', 'blue']}
+            />
             <ReactD3Bar
               data={data}
               xKey='month'
               yKey={yKey}
+              dataJoinKey={(d) => `${d.month}-${d[yKey]}`}
+              colorScaleId='colorScale'
+              colorKey={yKey}
+              mouseOver={setTooltipData}
+              mouseOut={removeTooltipData}
             />
-            <ReactD3Circle
-              data={data}
-              xKey='month'
-              yKey={yKey}
-            />
+            <ReactD3CustomTooltip position={tooltipState?.position} arrow='under'>
+              {
+                tooltipState
+                  ? (
+                    <>
+                      <div>
+                        {`${yKey}: ${tooltipState.data[yKey]}`}
+                      </div>
+                    </>
+                  )
+                  : null
+              }
+            </ReactD3CustomTooltip>
           </ReactD3Chart>
         </div>
       </div>
@@ -228,8 +263,6 @@ const gapMinderLegend = [
   { id: 'europe', name: 'Europe', active: true },
 ];
 
-type test = D3DataLinear<Countries>
-
 function Scatter() {
   const [data, setData] = useState<Countries[]>(gapminder[0].countries);
   const index = useRef(0);
@@ -238,7 +271,6 @@ function Scatter() {
   const [tooltipState, setTooltipState] = useState<Countries | null>(null);
   const [legendItems, setLegendItems] = useState(gapMinderLegend);
   const [year, setYear] = useState(gapminder[0].year);
-  const dataJoinKey = useRef<['country']>(['country']);
 
   const dataFilterCallback = useCallback((items: typeof legendItems) => {
     const activeItems = items.filter((li) => li.active).map((li) => li.id);
@@ -302,24 +334,22 @@ function Scatter() {
     setTooltipState(null);
   }, []);
 
-  console.log('tooltipState: ', tooltipState);
-
   return (
     <>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: '1em',
+      }}>
+        <button onClick={rev}>{'<'}</button>
+        <button onClick={play}>Play</button>
+        <button onClick={pause}>Pause</button>
+        <button onClick={fwd}>{'>'}</button>
+        <input ref={inputRef} placeholder='time' defaultValue='100'/>
+      </div>
       <div className={styles.container}>
         <div className={styles.wrapper}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginTop: '1em',
-          }}>
-            <button onClick={rev}>{'<'}</button>
-            <button onClick={play}>Play</button>
-            <button onClick={pause}>Pause</button>
-            <button onClick={fwd}>{'>'}</button>
-            <input ref={inputRef} placeholder='time' defaultValue='100'/>
-          </div>
           <ReactD3Chart margin={chartMargin}>
             <ReactD3Title title={String(year)}/>
             <ReactD3ScaleLinear
@@ -351,7 +381,7 @@ function Scatter() {
               yKey='life_exp'
               rKey='population'
               fillOpacity='0.7'
-              dataJoinKey={dataJoinKey.current}
+              dataJoinKey={(d) => d.country}
               colorScaleId='color-scale'
               colorKey='continent'
               filter={dataFilter}
@@ -397,7 +427,7 @@ function Scatter() {
   );
 }
 
-const timeValueSeries: ID3LineSerie<TimeValue>[] = [
+const timeValueSeries: ID3AreaLineSerie<TimeValue>[] = [
   {
     name: 'value',
     xKey: 'year',
@@ -419,7 +449,95 @@ const timeValueLegends = [
 
 const Line = () => {
   const [data, setData] = useState<TimeValue[]>(timeValue);
-  const [series, setSeries] = useState<ID3LineSerie<TimeValue>[]>(timeValueSeries);
+  const [series, setSeries] = useState<ID3AreaLineSerie<TimeValue>[]>(timeValueSeries);
+  const [tooltipState, setTooltipState] = useState<ID3TooltipData<TimeValue> | null>(null);
+  const [legendItems, setLegendItems] = useState(timeValueLegends);
+  const dataJoinKey = useRef<['year']>(['year']);
+  const [test, setTest] = useState(false);
+  const [domainKeys, setDomainKeys] = useState<['value', 'value2']>(['value', 'value2']);
+
+  const onLegendClick = useCallback((item: D3LegendItem) => {
+    setLegendItems((state) => {
+      const ix = state.findIndex((s) => s.id === item.id);
+      if (ix < 0) return state;
+      const copy = [...state];
+      copy[ix].active = !(copy[ix].active);
+      return copy;
+    });
+  }, []);
+
+  // useEffect(() => {
+  //   setInterval(() => {
+  //     setTest((t) => !t);
+  //   }, 1000);
+  // }, []);
+
+  const setTooltipValue = useCallback((d: ID3TooltipData<TimeValue>) => {
+    setTooltipState(d || null);
+  }, []);
+
+  const removeTooltipValue = useCallback(() => {
+    setTooltipState(null);
+  }, []);
+
+  useEffect(() => {
+    const active = legendItems.filter((li) => li.active).map((li) => li.id);
+    setSeries(timeValueSeries.filter((l) => active.includes(l.name)));
+    setDomainKeys(active as any);
+  }, [legendItems]);
+
+  return (
+    <>
+      <div className={styles.container}>
+        <div className={styles.wrapper}>
+          <ReactD3Chart margin={chartMargin}>
+            <ReactD3ScaleLinear
+              data={data}
+              dataKey={domainKeys}
+              type='left'
+              domain={['dataMin-0.5%', 'dataMax+0.5%']}
+              label="Value"
+              id='y-scale'
+            />
+            <ReactD3ScaleBand
+              data={data}
+              dataKey='year'
+              type='bottom'
+              label="Year"
+              id='x-scale'
+            />
+            <ReactD3Line
+              data={data}
+              series={series}
+              mouseMove={setTooltipValue}
+              mouseOut={removeTooltipValue}
+              withDots
+              crosshair
+            />
+            <ReactD3Tooltip data={tooltipState} valueFormatter={(val) => formatCurrency(Number(val))}/>
+            <ReactD3Legend
+              type='line'
+              items={timeValueLegends}
+              onClick={onLegendClick}
+              style={{ marginTop: '5em' }}
+            />
+            <D3ChartOverlay>
+              <D3ChartOverlayElement position={{ x: 'inner-right', y: 'inner-center' }} xScaleId='x-scale' yScaleId="y-scale">
+                <div>
+                  Hello world
+                </div>
+              </D3ChartOverlayElement>
+            </D3ChartOverlay>
+          </ReactD3Chart>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const Area = () => {
+  const [data, setData] = useState<TimeValue[]>(timeValue);
+  const [series, setSeries] = useState<ID3AreaLineSerie<TimeValue>[]>(timeValueSeries);
   const [tooltipState, setTooltipState] = useState<ID3TooltipData<TimeValue> | null>(null);
   const [legendItems, setLegendItems] = useState(timeValueLegends);
   const dataJoinKey = useRef<['year']>(['year']);
@@ -474,13 +592,6 @@ const Line = () => {
               type='bottom'
               label="Year"
             />
-            {/* <ReactD3Line
-              data={data}
-              series={series}
-              mouseMove={setTooltipValue}
-              mouseOut={removeTooltipValue}
-              withDots
-            /> */}
             <ReactD3Area
               data={data}
               series={series}
@@ -527,7 +638,7 @@ type CoinsMerge = {
   price_ripple: number | null,
 }
 
-const coinsArray = (Object.entries(coins as Coins) as Entries<Coins>)
+const coinsArray = (Object.entries(coins as unknown as Coins) as Entries<Coins>)
   .reduce((coinsFiltered, [key, coin]) => ([
     ...coinsFiltered,
     ...coin.filter((c) => c.date)
@@ -549,7 +660,7 @@ const coinData = ((Object.values(coinsByDate))
     [`price_${v.id}`]: v.price_usd || null,
   }), {} as CoinsMerge)));
 
-const coinsSeries: ID3LineSerie<CoinsMerge>[] = [
+const coinsSeries: ID3AreaLineSerie<CoinsMerge>[] = [
   {
     name: 'Bitcoin',
     xKey: 'date',
@@ -592,7 +703,7 @@ const coinsLegends = [
 
 const Coins = () => {
   const [data, setData] = useState(coinData);
-  const [series, setSeries] = useState<ID3LineSerie<CoinsMerge>[]>(coinsSeries);
+  const [series, setSeries] = useState<ID3AreaLineSerie<CoinsMerge>[]>(coinsSeries);
   const [tooltipState, setTooltipState] = useState<ID3TooltipData<CoinsMerge> | null>(null);
   const [legendItems, setLegendItems] = useState(coinsLegends);
   const [keys, setKeys] = useState<D3NumberKey<CoinsMerge>[]>([
@@ -620,8 +731,6 @@ const Coins = () => {
   const removeTooltipValue = useCallback(() => {
     setTooltipState(null);
   }, []);
-
-  console.log(tooltipState);
 
   const tickFormatter = useCallback((t: any) => Intl.DateTimeFormat('pt-BR').format(t), []);
 
@@ -657,6 +766,7 @@ const Coins = () => {
               mouseMove={setTooltipValue}
               mouseOut={removeTooltipValue}
               withDots={false}
+              crosshair
             />
             <ReactD3Tooltip
               data={tooltipState}
@@ -675,13 +785,149 @@ const Coins = () => {
   );
 };
 
+const violinSeriesByType: ID3ViolinSerie<typeof IRIS[number]>[] = [
+  {
+    name: 'Sepal Length',
+    yKey: 'Sepal_Length',
+    fill: 'green',
+  },
+  {
+    name: 'Petal Length',
+    yKey: 'Petal_Length',
+    fill: 'red',
+  },
+  {
+    name: 'Petal Width',
+    yKey: 'Petal_Width',
+    fill: 'yellow',
+  },
+  {
+    name: 'Sepal Width',
+    yKey: 'Sepal_Width',
+    fill: 'blue',
+  },
+];
+
+const violinSeriesBySpecies: ID3ViolinSerie<typeof IRIS[number]>[] = [
+  {
+    name: 'Setosa',
+    yKey: 'Sepal_Length',
+    fill: 'green',
+    filterFn(value) {
+      return value.Species === 'setosa';
+    },
+  },
+  {
+    name: 'Virginica',
+    yKey: 'Sepal_Length',
+    fill: 'red',
+    filterFn(value) {
+      return value.Species === 'virginica';
+    },
+  },
+  {
+    name: 'Versicolor',
+    yKey: 'Sepal_Length',
+    fill: 'yellow',
+    filterFn(value) {
+      return value.Species === 'versicolor';
+    },
+  },
+];
+
+const Violin = () => {
+  const [data, setData] = useState<typeof IRIS>(IRIS);
+  const [series, setSeries] = useState<ID3ViolinSerie<typeof IRIS[number]>[]>(violinSeriesByType);
+  const [domain, setDomain] = useState(series.map((s) => s.name));
+  const [dataKeys, setDataKeys] = useState(series.map((s) => s.yKey));
+  const [species, setSpecies] = useState(Array.from(new Set(IRIS.map((i) => i.Species))));
+  const [type, setType] = useState<'specie' | 'type'>('type');
+  useEffect(() => {
+    setDomain(series.map((s) => s.name));
+  }, [series]);
+
+  useEffect(() => {
+    const newSeries = (type === 'specie' ? violinSeriesBySpecies : violinSeriesByType);
+    setDomain(newSeries.map((s) => s.name));
+    setSeries(newSeries);
+    setData(IRIS);
+  }, [type]);
+
+  const onOptionChg = useCallback((e: React.ChangeEvent) => {
+    const { value } = e.target as HTMLSelectElement;
+    if (type === 'type') {
+      setData(value ? IRIS.filter((i) => i.Species === value) : IRIS);
+    }
+  }, [type]);
+
+  const onTypeChg = useCallback((e: React.ChangeEvent) => {
+    const { value } = e.target as HTMLSelectElement;
+    if (value) {
+      setType(value as any);
+    }
+  }, []);
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <option></option>
+        <select onChange={onOptionChg}>
+          {
+                species.map((s) => (
+                  <option key={s}>{s}</option>
+                ))
+              }
+        </select>
+        <select onChange={onTypeChg}>
+          <option value='type'>Caract.</option>
+          <option value='specie'>Espécie</option>
+        </select>
+      </div>
+      <div className={styles.container}>
+        <div className={styles.wrapper}>
+          <ReactD3Chart margin={chartMargin}>
+            <ReactD3ScaleLinear
+              data={data}
+              dataKey={dataKeys}
+              type='left'
+              label="Value"
+              id='y-scale'
+            />
+            <ReactD3ScaleBand
+              domain={domain}
+              type='bottom'
+              label="Year"
+              id='x-scale'
+            />
+            <ReactD3Violin
+              data={data}
+              series={series}
+              crosshair
+              disableZoom
+            />
+            <D3ChartOverlay>
+              <D3ChartOverlayElement position={{ x: domain[1], y: 5 }} xScaleId='x-scale' yScaleId="y-scale">
+                <div>
+                  Hello world
+                </div>
+              </D3ChartOverlayElement>
+            </D3ChartOverlay>
+          </ReactD3Chart>
+        </div>
+      </div>
+    </>
+  );
+};
+
 export default function Home() {
   return (
     <>
-      {/* <Bar/> */}
-      <Line/>
+      {/* <Violin/> */}
+      <Bar/>
+      {/* <Line/> */}
+      {/* <Area/> */}
       {/* <Coins/> */}
-      {/* <Scatter/> */}
+      <Scatter/>
     </>
   );
 }

@@ -3,11 +3,9 @@ import {
   BaseType,
   curveCatmullRom,
   line,
-  pointer,
   Selection,
   zoom as D3Zoom,
 } from 'd3';
-import { D3Classes } from '../../consts/classes';
 import { D3DataCatgAndLinear } from '../../dataTypes';
 import { D3Defined } from '../../helpers/d3Defined';
 import { D3ZoomHelper } from '../../helpers/d3Zoom';
@@ -23,11 +21,10 @@ import {
   ID3ShapeAttrs,
   ID3TooltipData,
 } from '../../types';
+import { D3FormatCrosshair } from '../helpers/formatCrosshair';
+import { D3GetMousePosition } from '../Mouse/getMousePosition';
 import D3MouseRect from '../Mouse/MouseRect';
-import {
-  D3AreaUnderCurve,
-  sortSeriesByAUC,
-} from './helpers/AUC';
+import { sortSeriesByAUC } from './helpers/AUC';
 import { D3AreaLineClasses } from './helpers/classes';
 import { filterAreaLineTooltipValues } from './helpers/tooltip';
 
@@ -37,7 +34,7 @@ export interface ID3AreaLineSerie<
 D extends Record<string, unknown>
 > extends ID3ShapeAttrs<D> {
   xKey: D3NumberStringOrDateKey<D>,
-  yKey: D3NumberOrStringKey<D>,
+  yKey: D3NumberStringOrDateKey<D>,
   name: string;
 }
 
@@ -69,7 +66,13 @@ D extends Record<string, unknown>,
   filter?: (d: D) => boolean
   series: ID3AreaLineSerie<D>[]
   withDots?: boolean,
-  type: 'area' | 'line'
+  type: 'area' | 'line',
+  disableZoom?: boolean,
+  crosshair?: boolean,
+  formatCrosshair?: {
+    x?: (val: string | number | Date) => string
+    y?: (val: string | number | Date) => string
+  }
 }
 
 type DotsSelection<
@@ -88,7 +91,7 @@ D extends Record<string, unknown>,
 const DEFAULT_AREA_ATTRS: Record<keyof ID3ShapeAttrs<any>, string> = {
   stroke: 'white',
   fill: 'purple',
-  fillOpacity: '0.7',
+  fillOpacity: '0.6',
   strokeWidth: '2',
   strokeOpacity: '1',
 };
@@ -127,6 +130,12 @@ D extends Record<string, unknown>,
   private withDots: boolean;
   private type: 'area' | 'line';
   private defaultAttrs: {[k: string]: string};
+  private crosshair: boolean;
+  private disableZoom: boolean;
+  private formatCrosshair?: {
+    x?: (val: string | number | Date) => string
+    y?: (val: string | number | Date) => string
+  };
 
   constructor({
     chart,
@@ -138,6 +147,9 @@ D extends Record<string, unknown>,
     alpha = 0.5,
     transitionMs,
     withDots,
+    crosshair = false,
+    disableZoom = false,
+    formatCrosshair,
     mouseOut,
     mouseMove,
     mouseOver,
@@ -148,7 +160,10 @@ D extends Record<string, unknown>,
     this.xScale = xScale;
     this.yScale = yScale;
     this.type = type;
+    this.disableZoom = disableZoom;
+    this.crosshair = crosshair;
     this.defaultAttrs = defaultAttrs(this.type);
+    this.formatCrosshair = formatCrosshair;
 
     if (this.type === 'area') {
       this.series = sortSeriesByAUC(data, series, Array.from(new Set(series.map((s) => s.yKey))));
@@ -232,30 +247,22 @@ D extends Record<string, unknown>,
   }
 
   private mouseEventHandlers() {
-    this.mouseRect.appendMouseRect({
-      mouseOut: () => {
-        this.chart.chart
-          .select(`.${D3Classes.events.mouseVerticalLine}`)
-          .style('opacity', '0');
-        this.mouseOut();
-      },
-      mouseOver: (e) => {
-        this.chart.chart
-          .select(`.${D3Classes.events.mouseVerticalLine}`)
-          .style('opacity', '1');
-        this.mouseOver(e);
-      },
-      mouseMove: (e) => {
-        const [x] = pointer(e);
+    if (this.crosshair) {
+      this.mouseRect.appendCrosshair();
+    }
+    this.mouseRect.setEvents({
+      mouseMove: (e, mouseCallback) => {
+        const [x, y] = D3GetMousePosition(e, this.chart);
         const xVal = this.xScale.invert(x);
-        const lineXPos = this.getPosition(xVal, this.xScale.getScale());
+        const yVal = this.yScale.invert(y);
+        const xScaled = this.getPosition(xVal, this.xScale.getScale());
+        const yScaled = this.getPosition(yVal, this.yScale.getScale());
 
-        this.chart.chart
-          .select(`.${D3Classes.events.mouseVerticalLine}`)
-          .attr('x1', lineXPos)
-          .attr('y1', 0)
-          .attr('x2', lineXPos)
-          .attr('y2', this.chart.dims.innerDims.height);
+        mouseCallback(xScaled, yScaled);
+        this.mouseRect.setCrosshairText(
+          this.formatCrosshair?.x ? this.formatCrosshair.x(xVal as any) : D3FormatCrosshair(xVal),
+          this.formatCrosshair?.y ? this.formatCrosshair.y(yVal as any) : D3FormatCrosshair(yVal),
+        );
         if (this.tooltipIndex === xVal) return;
         if (this.tooltipIndex !== xVal) {
           this.tooltipIndex = xVal;
@@ -264,25 +271,26 @@ D extends Record<string, unknown>,
         }
       },
     });
+    if (!this.disableZoom) {
+      const zoom = D3Zoom<SVGSVGElement, unknown>()
+        .scaleExtent([1, 20])
+        .extent([[
+          0,
+          0,
+        ], [
+          this.chart.dims.innerDims.width,
+          this.chart.dims.innerDims.height,
+        ]])
+        .translateExtent([[0, 0], [this.chart.dims.innerDims.width, this.chart.dims.innerDims.height]])
+        .on('zoom', (e) => {
+          D3ZoomHelper(e, this.xScale);
+          D3ZoomHelper(e, this.yScale);
+          this.updateScales();
+        });
 
-    const zoom = D3Zoom<SVGGElement, unknown>()
-      .scaleExtent([1, 20])
-      .extent([[
-        0,
-        0,
-      ], [
-        this.chart.dims.innerDims.width,
-        this.chart.dims.innerDims.height,
-      ]])
-      .translateExtent([[0, 0], [this.chart.dims.innerDims.width, this.chart.dims.innerDims.height]])
-      .on('zoom', (e) => {
-        D3ZoomHelper(e, this.xScale);
-        D3ZoomHelper(e, this.yScale);
-        this.updateScales();
-      });
-
-    this.mouseRect.mouseG
-      .call(zoom);
+      this.chart.svg
+        .call(zoom);
+    }
   }
 
   private pathStart(paths: typeof this.paths) {
@@ -472,8 +480,6 @@ D extends Record<string, unknown>,
         .attr('cx', (xd) => this.getPosition(xd[xd.__attrs__.xKey], x || this.xScale.getScale()))
         .attr('cy', (yd) => this.getPosition(yd[yd.__attrs__.yKey], y || this.yScale.getScale()));
     }
-
-    this.mouseRect.updateRect();
   }
 }
 

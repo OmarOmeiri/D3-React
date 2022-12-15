@@ -1,9 +1,10 @@
+import { isEqual } from 'lodash';
 import {
   useEffect,
   useRef,
 } from 'react';
 import Circle, { ID3Circle } from '../../../d3/chartElements/Circle/Circle';
-import useRenderTrace from '../../../hooks/useRenderTrace';
+import { typedMemo } from '../../../utils/react/typedMemo';
 import {
   D3ContextGetScales,
   useD3Context,
@@ -57,7 +58,7 @@ const getCircleScales = (
   };
 };
 
-const ReactD3Circle = <
+const ReactD3Circle = typedMemo(<
 D extends Record<string, unknown>,
 >({
     data,
@@ -89,30 +90,6 @@ D extends Record<string, unknown>,
     margin,
     getScale,
   } = useD3Context();
-
-  // useRenderTrace('circle', {
-  //   chart,
-  //   scales,
-  //   dims,
-  //   margin,
-  //   colorKey,
-  //   data,
-  //   xKey,
-  //   yKey,
-  //   rKey,
-  //   radius,
-  //   radiusNorm,
-  //   dataJoinKey,
-  //   fill,
-  //   stroke,
-  //   strokeWidth,
-  //   yAxisId,
-  //   xAxisId,
-  //   colorScaleId,
-  //   transitionMs,
-  //   getScale,
-
-  // });
 
   useEffect(() => {
     if (chart && scales.length) {
@@ -191,6 +168,20 @@ D extends Record<string, unknown>,
   ]);
 
   return null;
-};
+}, (prev, next) => {
+  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof ReactCircleProps<any>)[];
+  for (const key of keys) {
+    if (key === 'dataJoinKey') {
+      if (!isEqual(prev.dataJoinKey, next.dataJoinKey)) return false;
+      continue;
+    }
+
+    if (prev[key] !== next[key]) {
+      return false;
+    }
+  }
+
+  return true;
+});
 
 export default ReactD3Circle;

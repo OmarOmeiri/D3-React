@@ -7,12 +7,12 @@
 
 .container{
   display: flex;
-  height: 100vh;
+  height: 500px;
   flex-wrap: wrap;
 }
 
-.container > * {
-  height: 50%;
+.wrapper {
+  height: 100%;
   width: 100%;
 }
 

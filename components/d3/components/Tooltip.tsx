@@ -3,12 +3,17 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
 } from 'react';
 import Tooltip from '../../../d3/chartElements/Tooltip/Tooltip';
 import { D3Classes } from '../../../d3/consts/classes';
 import { ID3TooltipData } from '../../../d3/types';
 import { colorToRgba } from '../../../utils/Color/colorFuncs';
 import { useD3Context } from '../context/D3Context';
+import {
+  getTooltipX,
+  getTooltipY,
+} from './helpers/tooltip';
 
 type Props<D extends Record<string, unknown>> = {
   dy?: number,
@@ -73,6 +78,7 @@ const getTooltipContent = <D extends Record<string, unknown>>(
           Object.entries(data.data)
             .reduce((vals, [key, value]) => {
               if (xKeys.includes(key)) return vals;
+              if (String(value) === 'null') return vals;
               return ([
                 ...vals,
                 <Fragment key={key}>
@@ -92,8 +98,8 @@ const getTooltipContent = <D extends Record<string, unknown>>(
 };
 
 const ReactD3Tooltip = <D extends Record<string, unknown>>({
-  dy = 30,
-  dx = 15,
+  dy = 15,
+  dx = 20,
   data,
   labelFormatter,
   valueFormatter,
@@ -101,6 +107,14 @@ const ReactD3Tooltip = <D extends Record<string, unknown>>({
 }: Props<D>) => {
   const tooltip = useRef<Tooltip | null>(null);
   const elemRef = useRef<null | HTMLDivElement>(null);
+  const [refInit, setRefInit] = useState(false);
+
+  const setRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      elemRef.current = node;
+      setRefInit(true);
+    }
+  }, []);
 
   const {
     chart,
@@ -108,23 +122,26 @@ const ReactD3Tooltip = <D extends Record<string, unknown>>({
   } = useD3Context();
 
   const onMouseMove = useCallback((_: any, x: number, y: number) => {
-    if (elemRef.current && chart) {
-      const tooltipWidth = elemRef.current.clientWidth;
-      const tooltipLeft = x + tooltipWidth;
-      const maxLeft = (
-        chart.dims.innerDims.width
-        + chart.dims.innerDims.left
-        + chart.dims.left
+    if (elemRef.current && chart && refInit) {
+      const tooltipY = getTooltipY(
+        elemRef.current,
+        chart,
+        y,
+        dy,
       );
-      let adjustedX = x;
-      if (tooltipLeft >= maxLeft) {
-        adjustedX = x - tooltipWidth - dx - 10;
-      }
+
+      const tooltipX = getTooltipX(
+        elemRef.current,
+        chart,
+        x,
+        dx,
+      );
+
       elemRef.current.style.visibility = 'visible';
-      elemRef.current.style.top = `${y}px`;
-      elemRef.current.style.left = `${adjustedX}px`;
+      elemRef.current.style.top = `${tooltipY}px`;
+      elemRef.current.style.left = `${tooltipX}px`;
     }
-  }, [chart, dx]);
+  }, [chart, dx, dy, refInit]);
 
   const onMouseOut = useCallback(() => {
     if (elemRef.current) {
@@ -133,7 +150,7 @@ const ReactD3Tooltip = <D extends Record<string, unknown>>({
   }, []);
 
   useEffect(() => {
-    if (chart && ref.current) {
+    if (chart && ref.current && refInit) {
       tooltip.current = new Tooltip({
         chart,
         dx,
@@ -142,12 +159,19 @@ const ReactD3Tooltip = <D extends Record<string, unknown>>({
         onMouseOut,
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart]);
+  }, [
+    chart,
+    refInit,
+    dx,
+    dy,
+    ref,
+    onMouseMove,
+    onMouseOut,
+  ]);
 
   if (!data || !data.attrs || !data.data) return null;
   return (
-    <div style={styles} ref={elemRef} className={D3Classes.tooltip}>
+    <div style={styles} ref={setRef} className={D3Classes.tooltip}>
       {
         getTooltipContent(
           data,

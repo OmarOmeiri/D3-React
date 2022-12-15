@@ -1,6 +1,10 @@
+'use client';
+
+import { isEqual } from 'lodash';
 import React, { useEffect } from 'react';
 import { D3Margins } from '../../../d3/Dimensions/types';
 import useRenderTrace from '../../../hooks/useRenderTrace';
+import { typedMemo } from '../../../utils/react/typedMemo';
 import {
   D3ContextProvider,
   useD3Context,
@@ -11,6 +15,13 @@ const styles: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
   position: 'relative',
+};
+
+const chartOverlayDivStyles: React.CSSProperties = {
+  height: '100%',
+  width: '100%',
+  position: 'absolute',
+  pointerEvents: 'none',
 };
 
 interface Props {
@@ -28,34 +39,37 @@ export function withD3Context(Component: React.ElementType) {
   };
 }
 
-const ReactD3Chart = withD3Context(({
+const ReactD3Chart = typedMemo(withD3Context(({
   children,
   margin,
 }: Props) => {
   const {
     setRef,
     setMargin,
+    chartOverlayRef,
   } = useD3Context();
 
   useEffect(() => {
     if (margin) {
-      setMargin(margin);
+      setMargin((state) => {
+        if (isEqual(state, margin)) return state;
+        return margin;
+      });
     }
   }, [margin, setMargin]);
 
-  // useRenderTrace('chart', {
-  //   children,
-  //   margin,
-  //   setRef,
-  //   setMargin,
-  // });
-
   return (
     <div style={styles}>
-      <div ref={setRef} style={{ height: '100%', flexGrow: '1' }}/>
+      <div ref={setRef} style={{ height: '100%', flexGrow: '1' }}>
+        <div ref={chartOverlayRef} style={chartOverlayDivStyles} className="d3-chart-overlay"/>
+      </div>
       {children}
     </div>
   );
+}), (prev, next) => {
+  if (!isEqual(prev.margin, next.margin)) return false;
+  if (prev.children !== next.children) return false;
+  return true;
 });
 
 export default ReactD3Chart;

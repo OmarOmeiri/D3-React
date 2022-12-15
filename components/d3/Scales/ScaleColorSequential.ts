@@ -4,64 +4,36 @@ import {
   useRef,
 } from 'react';
 import { D3DataLinear } from '../../../d3/dataTypes';
-import D3ScaleLog, {
-  IScaleLog,
-  IScaleLogNoData,
-  IScaleLogWithData,
-} from '../../../d3/Scales/ScaleLog';
+import D3ScaleColorSequential, { IScaleColorSequential } from '../../../d3/Scales/ScaleColorSequential';
 import { D3NumberKey } from '../../../d3/types';
 import { typedMemo } from '../../../utils/react/typedMemo';
 import { useD3Context } from '../context/D3Context';
 
-import type { ID3Axis } from '../../../d3/Axes/Axis';
-
-type ReactD3ScaleLogProps<
+const ReactD3ScaleColorSequential = typedMemo(<
 D extends Record<string, unknown>,
-> = Expand<
-(PartialK<IScaleLogWithData<D>, 'id'> | PartialK<IScaleLogNoData, 'id'>)
-& PartialK<Omit<ID3Axis, 'parent' | 'scale' | 'chart'>, 'id'>
->
-
-const ReactD3ScaleLog = typedMemo(<
-D extends Record<string, unknown>
 >({
     id,
     data,
-    base,
     dataKey,
+    range,
     domain,
-    roundDomain,
-    type,
-    label,
-    tickValues,
-    ticks,
-    tickFormat,
-  }: ReactD3ScaleLogProps<D>) => {
-  const scaleId = useRef(id || 'log-scale');
+  }: IScaleColorSequential<D>) => {
+  const scaleId = useRef(id || 'seq-color-scale');
   const {
     chart,
     scales,
-    dims,
     getScale,
     addScale,
   } = useD3Context();
-
   useEffect(() => {
     if (chart) {
-      const scale = new D3ScaleLog({
+      const scale = new D3ScaleColorSequential({
         id: scaleId.current,
-        chart,
-        base,
-        ticks,
         data: data as D3DataLinear<D>[],
         dataKey: dataKey as D3NumberKey<D>,
+        range,
         domain,
-        roundDomain,
-        type,
-        label,
-        tickValues,
-        tickFormat,
-      } as IScaleLog<D>);
+      });
       addScale(scale);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,32 +41,29 @@ D extends Record<string, unknown>
 
   useEffect(() => {
     if (chart && scales.length) {
-      const scale = getScale({ id: scaleId.current }) as D3ScaleLog<D>;
+      const scale = getScale({ id: scaleId.current }) as D3ScaleColorSequential<D>;
       scale.updateScale({
-        chart,
-        type,
-        label,
         id: scaleId.current,
         data: data as D3DataLinear<D>[],
         dataKey: dataKey as D3NumberKey<D>,
+        range,
         domain,
-      } as IScaleLog<D>);
+      });
     }
   }, [
     chart,
-    data,
-    dims,
     scales,
+    id,
+    data,
     dataKey,
+    range,
     domain,
-    label,
-    type,
     getScale,
   ]);
 
   return null;
 }, (prev, next) => {
-  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof ReactD3ScaleLogProps<any>)[];
+  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof IScaleColorSequential<any>)[];
   for (const key of keys) {
     if (key === 'domain') {
       if (!isEqual(prev.domain, next.domain)) return false;
@@ -106,11 +75,6 @@ D extends Record<string, unknown>
       continue;
     }
 
-    if (key === 'tickValues') {
-      if (!isEqual(prev.tickValues, next.tickValues)) return false;
-      continue;
-    }
-
     if (prev[key] !== next[key]) {
       return false;
     }
@@ -119,5 +83,4 @@ D extends Record<string, unknown>
   return true;
 });
 
-export default ReactD3ScaleLog;
-
+export default ReactD3ScaleColorSequential;

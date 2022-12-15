@@ -41,3 +41,17 @@ In extends Selection<any, any, any, any>,
   }
   if (options?.createIfNotExist) return createSelection();
 }
+
+export const d3UpdateSelection = <
+  S extends Selection<any, any, any, any>,
+>(
+    selection: S,
+    updateSelection: (sel: S) => S,
+    createSelection: () => S,
+  ) => {
+  if (selection.size()) {
+    return updateSelection(selection);
+  }
+
+  return updateSelection(createSelection());
+};

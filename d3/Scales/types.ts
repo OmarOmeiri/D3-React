@@ -1,4 +1,6 @@
 import type D3ScaleBand from './ScaleBand';
+import type D3ScaleColorSequential from './ScaleColorSequential';
+
 import type D3ScaleLinear from './ScaleLinear';
 import type D3ScaleLog from './ScaleLog';
 import type D3ScaleOrdinal from './ScaleOrdinal';
@@ -37,6 +39,7 @@ D extends Record<string, unknown>,
 | D3ScaleLog<D>
 | D3ScaleOrdinal<D>
 | D3ScaleTime<D>
+| D3ScaleColorSequential<D>
 
 export interface IScale<
 D extends Record<string, unknown>,

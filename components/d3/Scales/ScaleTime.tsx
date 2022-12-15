@@ -3,7 +3,6 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import uniqid from 'uniqid';
 import { ID3Axis } from '../../../d3/Axes/Axis';
 import { D3DataTime } from '../../../d3/dataTypes';
 import D3ScaleTime, {
@@ -11,7 +10,6 @@ import D3ScaleTime, {
   IScaleTimeWithData,
 } from '../../../d3/Scales/ScaleTime';
 import { D3DateKey } from '../../../d3/types';
-import useRenderTrace from '../../../hooks/useRenderTrace';
 import { typedMemo } from '../../../utils/react/typedMemo';
 import { useD3Context } from '../context/D3Context';
 
@@ -35,7 +33,7 @@ D extends Record<string, unknown>,
     ticks,
     tickFormat,
   }: ReactD3ScaleTimeProps<D>) => {
-  const scaleId = useRef(id || uniqid());
+  const scaleId = useRef(id || 'time-scale');
   const {
     chart,
     scales,
@@ -43,26 +41,6 @@ D extends Record<string, unknown>,
     getScale,
     addScale,
   } = useD3Context();
-
-  // useRenderTrace('scaleTime', {
-  //   chart,
-  //   scales,
-  //   axes,
-  //   dims,
-  //   getScale,
-  //   updateScale,
-  //   addScale,
-  //   addAxis,
-  //   id,
-  //   data,
-  //   dataKey,
-  //   domain,
-  //   roundDomain,
-  //   type,
-  //   label,
-  //   tickValues,
-  //   tickFormat,
-  // });
 
   useEffect(() => {
     if (chart) {

@@ -3,14 +3,12 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import uniqid from 'uniqid';
 import { D3DataLinear } from '../../../d3/dataTypes';
 import D3ScaleLinear, {
   IScaleLinearNoData,
   IScaleLinearWithData,
 } from '../../../d3/Scales/ScaleLinear';
 import { D3NumberKey } from '../../../d3/types';
-import useRenderTrace from '../../../hooks/useRenderTrace';
 import { typedMemo } from '../../../utils/react/typedMemo';
 import { useD3Context } from '../context/D3Context';
 
@@ -37,7 +35,7 @@ D extends Record<string, unknown>,
     ticks,
     tickFormat,
   }: ReactD3ScaleLinearProps<D>) => {
-  const scaleId = useRef(id || uniqid());
+  const scaleId = useRef(id || 'linear-scale');
   const {
     chart,
     dims,
@@ -45,22 +43,6 @@ D extends Record<string, unknown>,
     getScale,
     addScale,
   } = useD3Context();
-
-  useRenderTrace('scaleLinear', {
-    chart,
-    scales,
-    getScale,
-    addScale,
-    id,
-    data,
-    dataKey,
-    domain,
-    roundDomain,
-    type,
-    label,
-    tickValues,
-    tickFormat,
-  });
 
   useEffect(() => {
     if (chart) {
