@@ -1,12 +1,13 @@
 import {
-  BaseType,
   select,
   Selection,
-  zoom as D3Zoom,
+  Transition,
 } from 'd3';
 import { D3Classes } from '../../consts/classes';
 import { D3DataCatgAndLinear } from '../../dataTypes';
-import { D3ZoomHelper } from '../../helpers/d3Zoom';
+import { d3AppendIfNotExists } from '../../helpers/d3Exists';
+import { D3OnTransitionEnd } from '../../helpers/d3OnTransitionEnd';
+import { D3Zoom } from '../../helpers/d3Zoom';
 import { D3ScaleLinear } from '../../Scales';
 import D3ScaleBand from '../../Scales/ScaleBand';
 import D3ScaleColorSequential from '../../Scales/ScaleColorSequential';
@@ -16,10 +17,11 @@ import {
   D3StringKey,
   ID3Events,
   ID3ShapeAttrs,
+  ID3TooltipDataSingle,
 } from '../../types';
 import { D3FormatCrosshair } from '../helpers/formatCrosshair';
-import { D3GetMousePosition } from '../Mouse/getMousePosition';
-import D3MouseRect from '../Mouse/MouseRect';
+import D3Mouse from '../Mouse/D3Mouse';
+import { D3GetMousePosition } from '../Mouse/helpers/getMousePosition';
 
 import type D3Chart from '../../Chart';
 
@@ -46,12 +48,15 @@ D extends Record<string, unknown>,
   crosshair?: boolean,
   disableZoom?: boolean,
   transitionMs?: number
-  mouseOver: (d: D, pos: {x: number, y: number}) => void;
+  mouseOver: (d: ID3TooltipDataSingle<D>) => void;
   formatCrosshair?: {
     x?: (val: string | number | Date) => string
     y?: (val: string | number | Date) => string
   }
 }
+
+type BarsSelection<D extends Record<string, unknown>> = Selection<SVGRectElement, D3DataCatgAndLinear<D>, SVGGElement, unknown>
+type BarsTransition<D extends Record<string, unknown>> = Transition<SVGRectElement, D3DataCatgAndLinear<D>, SVGGElement, unknown>
 
 class Bar<
 D extends Record<string, unknown>,
@@ -59,6 +64,7 @@ D extends Record<string, unknown>,
   private chart: D3Chart;
   private xScale: D3ScaleBand<D>;
   private yScale: D3ScaleLinear<D>;
+  private parentGroup!: Selection<SVGGElement, unknown, null, undefined>;
   private bars!: Selection<SVGRectElement, D3DataCatgAndLinear<D>, SVGGElement, unknown>;
   private data: D3DataCatgAndLinear<D>[];
   private yKey: D3NumberKey<D>;
@@ -71,11 +77,11 @@ D extends Record<string, unknown>,
   private stroke: string | ((d: D, index: number) => string);
   private strokeWidth: string | ((d: D, index: number) => string);
   private strokeOpacity: string | ((d: D, index: number) => string);
-  private mouseRect: D3MouseRect;
+  private mouse: D3Mouse;
   private disableZoom: boolean;
   private crosshair: boolean;
   private transitionMs: number;
-  private mouseOver: (d: D, pos: {x: number, y: number}) => void;
+  private mouseOver: (d: ID3TooltipDataSingle<D>) => void;
   private mouseOut: Required<ID3Events<D>>['mouseOut'];
   private formatCrosshair?: {
     x?: (val: string | number | Date) => string
@@ -124,10 +130,19 @@ D extends Record<string, unknown>,
     this.crosshair = crosshair;
     this.formatCrosshair = formatCrosshair;
 
-    this.mouseRect = new D3MouseRect(this.chart);
+    this.mouse = new D3Mouse(this.chart);
     this.mouseOver = mouseOver || (() => {});
     this.mouseOut = mouseOut || (() => {});
-    this.update(data);
+
+    this.parentGroup = d3AppendIfNotExists(
+      this.chart.chart
+        .select<SVGGElement>(`.${D3Classes.chartElements.bar.allBarsGroup}`),
+      () => this.chart.chart
+        .append('g')
+        .attr('class', D3Classes.chartElements.bar.allBarsGroup)
+        .attr('clip-path', `url(#${this.chart.chartAreaClipId})`),
+    );
+    this.pattern(data);
   }
 
   private getAttr(
@@ -163,9 +178,9 @@ D extends Record<string, unknown>,
 
   private mouseEventHandlers() {
     if (this.crosshair) {
-      this.mouseRect.appendCrosshair();
+      this.mouse.appendCrosshair();
     }
-    this.mouseRect.setEvents({
+    this.mouse.setEvents({
       mouseMove: (e, mouseCallback) => {
         const [x, y] = D3GetMousePosition(e, this.chart);
         const xVal = this.xScale.invert(x);
@@ -174,59 +189,56 @@ D extends Record<string, unknown>,
         const yScaled = this.getPosition(yVal, this.yScale.getScale());
         mouseCallback(xScaled, yScaled);
 
-        this.mouseRect.setCrosshairText(
+        this.mouse.setCrosshairText(
           this.formatCrosshair?.x ? this.formatCrosshair.x(xVal as any) : D3FormatCrosshair(xVal),
           this.formatCrosshair?.y ? this.formatCrosshair.y(yVal as any) : D3FormatCrosshair(yVal),
         );
       },
     });
     if (!this.disableZoom) {
-      const zoom = D3Zoom<SVGSVGElement, unknown>()
-        .scaleExtent([1, 20])
-        .extent([[
-          0,
-          0,
-        ], [
-          this.chart.dims.innerDims.width,
-          this.chart.dims.innerDims.height,
-        ]])
-        .translateExtent([[0, 0], [this.chart.dims.innerDims.width, this.chart.dims.innerDims.height]])
-        .on('zoom', (e) => {
-          D3ZoomHelper(e, this.xScale);
-          D3ZoomHelper(e, this.yScale);
-          this.updateScales(0);
-        });
-
-      this.chart.svg
-        .call(zoom);
+      D3Zoom({
+        chart: this.chart,
+        xScale: this.xScale,
+        yScale: this.yScale,
+        onZoom: () => { this.update(0); },
+      });
     }
   }
 
-  private barsStart(bars: typeof this.bars) {
-    return bars
+  private barsStart<
+    T extends BarsSelection<D>
+    | BarsTransition<D>
+  >(bars: T) {
+    return (bars as BarsSelection<D>)
       .attr('class', D3Classes.chartElements.bar.bar)
       .attr('x', (d) => Number(this.xScale.getScale()(d[this.xKey])))
       .attr('width', this.xScale.getScale().bandwidth())
       .attr('fill', 'rgba(0, 0, 0, 0)')
       .attr('y', this.yScale.getScale()(0))
-      .attr('height', 0);
+      .attr('height', 0) as T;
   }
 
-  private barsEnd(bars: typeof this.bars) {
-    return bars
+  private barsEnd<
+    T extends BarsSelection<D>
+    | BarsTransition<D>
+  >(bars: T): T {
+    return (bars as BarsSelection<D>)
+      .attr('class', D3Classes.chartElements.bar.bar)
+      .attr('x', (d) => Number(this.xScale.getScale()(d[this.xKey])))
+      .attr('y', (d) => this.yScale.getScale()(d[this.yKey]))
+      .attr('width', this.xScale.getScale().bandwidth())
       .attr('fill', (d, i) => this.getAttr('fill')(d, i))
       .attr('fillOpacity', (d, i) => this.getAttr('fillOpacity')(d, i))
       .attr('stroke', (d, i) => this.getAttr('stroke')(d, i))
       .attr('strokeWidth', (d, i) => this.getAttr('strokeWidth')(d, i))
       .attr('strokeOpacity', (d, i) => this.getAttr('strokeOpacity')(d, i))
-      .attr('y', (d) => this.yScale.getScale()(d[this.yKey]))
-      .attr('height', (d) => this.yScale.getScale()(0) - this.yScale.getScale()(d[this.yKey]));
+      .attr('height', (d) => this.yScale.getScale()(0) - this.yScale.getScale()(d[this.yKey])) as T;
   }
 
-  update(newData: D3DataCatgAndLinear<D>[]) {
+  private pattern(newData: D3DataCatgAndLinear<D>[]) {
     this.mouseEventHandlers();
     this.data = newData;
-    this.bars = this.chart.chart
+    this.bars = this.parentGroup
       .selectAll<SVGRectElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.bar.bar}`)
       .data(this.data, (d, i) => {
         if (this.dataJoinKey) return this.dataJoinKey(d);
@@ -239,25 +251,43 @@ D extends Record<string, unknown>,
         .duration(this.transitionMs) as unknown as typeof this.bars,
     );
 
-    this.exit();
-    this.enter();
+    const exiting = this.exit();
+    const entering = this.enter();
+    this.onTransitionEnd(entering, exiting);
   }
 
-  enter() {
+  private enter() {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const vis = this;
-    const barsEnter = this.barsStart(
+    const barsInit = this.barsStart(
       this.bars
         .enter()
         .append('rect'),
     );
-    barsEnter
-      .on('mouseover', function (e, d) {
-        select(this)
+    barsInit
+      .on('mouseover', function (_, d) {
+        const bar = select(this);
+        bar
           .classed(D3Classes.events.hovered, true);
         const x = vis.getPosition(d[vis.xKey], vis.xScale.getScale());
         const y = vis.getPosition(d[vis.yKey], vis.yScale.getScale());
-        vis.mouseOver(d, { x, y });
+        vis.mouseOver({
+          data: d,
+          position: {
+            x,
+            y,
+          },
+          attrs: {
+            name: String(vis.yKey),
+            fill: bar.attr('fill') || undefined,
+            fillOpacity: bar.attr('fill-opacity') || undefined,
+            stroke: bar.attr('stroke') || undefined,
+            strokeWidth: bar.attr('stroke-width') || undefined,
+            strokeOpacity: bar.attr('stroke-opacity'),
+            xKey: String(vis.xKey),
+            yKey: String(vis.yKey),
+          },
+        });
       })
       .on('mouseout', function () {
         select(this)
@@ -265,36 +295,43 @@ D extends Record<string, unknown>,
         vis.mouseOut();
       });
 
-    this.barsEnd(
-      barsEnter
+    const entering = this.barsEnd(
+      barsInit
         .transition()
-        .duration(this.transitionMs) as unknown as typeof this.bars,
+        .duration(this.transitionMs),
     );
+    return entering;
   }
 
-  exit() {
-    this.barsStart(
+  private exit() {
+    const exiting = this.barsStart(
       this.bars
-        .exit()
+        .exit<D3DataCatgAndLinear<D>>()
         .transition()
-        .duration(this.transitionMs) as unknown as typeof this.bars,
-    ).remove();
+        .duration(this.transitionMs),
+    );
+
+    exiting.remove();
+    return exiting;
   }
 
-  updateScales(transition?: number) {
-    this.chart.chart
-      .selectAll<SVGRectElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.bar.bar}`)
-      .transition()
-      .duration(transition || this.transitionMs)
-      .attr('y', (d) => this.yScale.getScale()(d[this.yKey]))
-      .attr('x', (d) => Number(this.xScale.getScale()(d[this.xKey])))
-      .attr('width', this.xScale.getScale().bandwidth())
-      .attr('height', (d) => this.yScale.getScale()(0) - this.yScale.getScale()(d[this.yKey]))
-      .attr('fill', (d, i) => this.getAttr('fill')(d, i))
-      .attr('fillOpacity', (d, i) => this.getAttr('fillOpacity')(d, i))
-      .attr('stroke', (d, i) => this.getAttr('stroke')(d, i))
-      .attr('strokeWidth', (d, i) => this.getAttr('strokeWidth')(d, i))
-      .attr('strokeOpacity', (d, i) => this.getAttr('strokeOpacity')(d, i));
+  private onTransitionEnd(
+    ...transitions: Transition<any, any, any, any>[]
+  ) {
+    D3OnTransitionEnd(...transitions)({
+      onResolve: () => this.update(),
+      onReject: () => this.update(),
+      onEmpty: () => this.update(),
+    });
+  }
+
+  update(transition?: number) {
+    this.barsEnd(
+      this.parentGroup
+        .selectAll<SVGRectElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.bar.bar}`)
+        .transition()
+        .duration(transition ?? this.transitionMs),
+    );
   }
 }
 

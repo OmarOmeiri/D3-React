@@ -45,6 +45,7 @@ export const D3Classes = {
   },
   chartElements: {
     bar: {
+      allBarsGroup: 'd3-bars-g',
       bar: 'd3-bar',
       barGroup: 'd3-bar-g',
     },

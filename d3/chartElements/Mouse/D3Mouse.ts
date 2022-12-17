@@ -1,5 +1,6 @@
 import { D3Classes } from '../../consts/classes';
 import { d3AppendIfNotExists } from '../../helpers/d3Exists';
+import { D3isMouseWithinBounds } from './helpers/isMouseWithin';
 
 import type D3Chart from '../../Chart';
 
@@ -7,13 +8,7 @@ interface ID3MouseEvts {
   mouseMove?: (e: any, positionCallback: (x: number, y: number) => void) => void;
 }
 
-const isMouseWithinBounds = (x: number, y: number, chart: D3Chart) => {
-  if (y <= 0 || y >= chart.dims.innerDims.height) return false;
-  if (x <= 0 || x >= chart.dims.innerDims.width) return false;
-  return true;
-};
-
-class D3MouseRect {
+class D3Mouse {
   constructor(
     private chart: D3Chart,
     private withLine: boolean = true,
@@ -32,7 +27,7 @@ class D3MouseRect {
         this.mouseOver();
       })
       .on('mousemove', (e) => mouseMove(e, (x, y) => {
-        if (!isMouseWithinBounds(x, y, this.chart)) {
+        if (!D3isMouseWithinBounds(e, this.chart)) {
           this.removeMouseElements();
           return;
         }
@@ -140,6 +135,7 @@ class D3MouseRect {
           .style('stroke', '#A9A9A9')
           .style('stroke-width', 2)
           .style('opacity', '1')
+          .attr('pointer-events', 'none')
       ),
     );
   }
@@ -155,6 +151,7 @@ class D3MouseRect {
           .style('stroke-width', 1)
           .style('opacity', '1')
           .attr('stroke-dasharray', '6 4')
+          .attr('pointer-events', 'none')
       ),
     );
 
@@ -168,6 +165,7 @@ class D3MouseRect {
           .style('stroke-width', 1)
           .style('opacity', '1')
           .attr('stroke-dasharray', '6 4')
+          .attr('pointer-events', 'none')
       ),
     );
 
@@ -182,6 +180,7 @@ class D3MouseRect {
           .append('xhtml:div')
           .style('opacity', '0')
           .attr('class', D3Classes.axis.tooltip.x)
+          .attr('pointer-events', 'none')
       ),
     );
 
@@ -196,6 +195,7 @@ class D3MouseRect {
           .append('xhtml:div')
           .style('opacity', '0')
           .attr('class', D3Classes.axis.tooltip.y)
+          .attr('pointer-events', 'none')
       ),
     );
   }
@@ -209,4 +209,4 @@ class D3MouseRect {
   }
 }
 
-export default D3MouseRect;
+export default D3Mouse;

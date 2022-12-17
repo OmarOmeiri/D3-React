@@ -10,6 +10,7 @@ import { isDate } from 'lullo-utils/Date';
 import { linearRegression } from 'lullo-utils/Math';
 import { groupBy } from 'lullo-utils/Objects';
 import React, {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -21,11 +22,12 @@ import ReactD3Area from '../components/d3/components/Area';
 import ReactD3Bar from '../components/d3/components/Bar';
 import D3ChartOverlay, { D3ChartOverlayElement } from '../components/d3/components/ChartOverlay';
 import ReactD3Circle from '../components/d3/components/Circle';
-import ReactD3CustomTooltip from '../components/d3/components/CustomTooltip';
 import ReactD3Legend, { D3LegendItem } from '../components/d3/components/Legend';
 import ReactD3Line from '../components/d3/components/Line';
 import ReactD3Title from '../components/d3/components/Title';
-import ReactD3Tooltip from '../components/d3/components/Tooltip';
+import ReactD3TooltipMulti from '../components/d3/components/Tooltip/TooltipMulti';
+import ReactD3TooltipSingle from '../components/d3/components/Tooltip/TooltipSingle';
+import TooltipTabledKeyValuePair from '../components/d3/components/Tooltip/TooltipTabledKeyValuePair';
 import ReactD3Violin from '../components/d3/components/Violin';
 import ReactD3ScaleBand from '../components/d3/Scales/ScaleBand';
 import ReactD3ScaleColorSequential from '../components/d3/Scales/ScaleColorSequential';
@@ -33,13 +35,15 @@ import ReactD3ScaleLinear from '../components/d3/Scales/ScaleLinear';
 import ReactD3ScaleLog from '../components/d3/Scales/ScaleLog';
 import ReactD3ScaleOrdinal from '../components/d3/Scales/ScaleOrdinal';
 import ReactD3ScaleTime from '../components/d3/Scales/ScaleTime';
+import { TabledkeyValuePair } from '../components/TabledKeyValue/TabledKeyValuePair';
 import { ID3AreaLineSerie } from '../d3/chartElements/AreaLine/AreaLine';
 import { ID3ViolinSerie } from '../d3/chartElements/Violin/Violin';
 import { D3DataLinear } from '../d3/dataTypes';
 import { D3LinearDomain } from '../d3/Scales/types';
 import {
   D3NumberKey,
-  ID3TooltipData,
+  ID3TooltipDataMulti,
+  ID3TooltipDataSingle,
 } from '../d3/types';
 import coins from '../data/coins.json';
 import gapmnder from '../data/gapminder.json';
@@ -161,25 +165,23 @@ const Bar = () => {
   const [data, setData] = useState(revenues);
   const flag = useRef(true);
   const [yKey, setYkey] = useState<'profit' | 'revenue'>('profit');
-  const [tooltipState, setTooltipState] = useState<{data: typeof data[number], position: {x: number, y: number}} | null>(null);
+  const [tooltipState, setTooltipState] = useState<ID3TooltipDataSingle<typeof data[number]> | null>(null);
 
   const changeK = () => {
-    setYkey((k) => {
-      if (k === 'profit') return 'revenue';
-      return 'profit';
-    });
-    // flag.current = !flag.current;
-    // setData(
-    //   flag.current
-    //     ? revenues
-    //     : revenues.slice(1),
-    // );
+    // setYkey((k) => {
+    //   if (k === 'profit') return 'revenue';
+    //   return 'profit';
+    // });
+    flag.current = !flag.current;
+    setData(
+      flag.current
+        ? revenues
+        : revenues.slice(1),
+    );
   };
 
-  console.log(data);
-
-  const setTooltipData = useCallback((d: typeof data[number], pos: {x: number, y: number}) => {
-    setTooltipState({ data: d, position: pos });
+  const setTooltipData = useCallback((d: ID3TooltipDataSingle<typeof data[number]>) => {
+    setTooltipState(d);
   }, []);
 
   const removeTooltipData = useCallback(() => {
@@ -229,19 +231,12 @@ const Bar = () => {
               mouseOver={setTooltipData}
               mouseOut={removeTooltipData}
             />
-            <ReactD3CustomTooltip position={tooltipState?.position} arrow='under'>
-              {
-                tooltipState
-                  ? (
-                    <>
-                      <div>
-                        {`${yKey}: ${tooltipState.data[yKey]}`}
-                      </div>
-                    </>
-                  )
-                  : null
-              }
-            </ReactD3CustomTooltip>
+            <ReactD3TooltipSingle
+              data={tooltipState}
+              arrow='under'
+              mouseFollow={false}
+              valueFormatter={(v) => formatCurrency(Number(v))}
+            />
           </ReactD3Chart>
         </div>
       </div>
@@ -268,7 +263,7 @@ function Scatter() {
   const index = useRef(0);
   const timer = useRef<NodeJS.Timer | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [tooltipState, setTooltipState] = useState<Countries | null>(null);
+  const [tooltipState, setTooltipState] = useState<ID3TooltipDataSingle<Countries> | null>(null);
   const [legendItems, setLegendItems] = useState(gapMinderLegend);
   const [year, setYear] = useState(gapminder[0].year);
 
@@ -326,7 +321,7 @@ function Scatter() {
     });
   }, []);
 
-  const setTooltipValue = useCallback((d?: Countries) => {
+  const setTooltipValue = useCallback((d?: ID3TooltipDataSingle<Countries>) => {
     setTooltipState(d || null);
   }, []);
 
@@ -388,31 +383,38 @@ function Scatter() {
               mouseOver={setTooltipValue}
               mouseOut={removeTooltipValue}
             />
-            <ReactD3CustomTooltip>
+            <ReactD3TooltipSingle data={tooltipState}>
               {
+                tooltipState
+                  ? (
+                    <TooltipTabledKeyValuePair data={tooltipState} keyLabel='continent'/>
+                  )
+                  : null
+              }
+              {/* {
                 tooltipState
                   ? (
                     <>
                       <div>
-                        {`País: ${tooltipState.country}`}
+                        {`País: ${tooltipState.data.country}`}
                       </div>
                       <div>
-                        {`PIB per Capita: ${formatCurrency(Number(tooltipState.income), 'en-US', 'USD')}`}
+                        {`PIB per Capita: ${formatCurrency(Number(tooltipState.data.income), 'en-US', 'USD')}`}
                       </div>
                       <div>
-                        {`PIB: ${formatCurrency(tooltipState.income * tooltipState.population, 'en-US', 'USD')}`}
+                        {`PIB: ${formatCurrency(tooltipState.data.income * tooltipState.data.population, 'en-US', 'USD')}`}
                       </div>
                       <div>
-                        {`Expectativa de vida: ${tooltipState.life_exp}`}
+                        {`Expectativa de vida: ${tooltipState.data.life_exp}`}
                       </div>
                       <div>
-                        {`População: ${Intl.NumberFormat('pt-BR').format(tooltipState.population)}`}
+                        {`População: ${Intl.NumberFormat('pt-BR').format(tooltipState.data.population)}`}
                       </div>
                     </>
                   )
                   : null
-              }
-            </ReactD3CustomTooltip>
+              } */}
+            </ReactD3TooltipSingle>
             <ReactD3Legend
               colorScaleId='color-scale'
               type='dot'
@@ -450,7 +452,7 @@ const timeValueLegends = [
 const Line = () => {
   const [data, setData] = useState<TimeValue[]>(timeValue);
   const [series, setSeries] = useState<ID3AreaLineSerie<TimeValue>[]>(timeValueSeries);
-  const [tooltipState, setTooltipState] = useState<ID3TooltipData<TimeValue> | null>(null);
+  const [tooltipState, setTooltipState] = useState<ID3TooltipDataMulti<TimeValue> | null>(null);
   const [legendItems, setLegendItems] = useState(timeValueLegends);
   const dataJoinKey = useRef<['year']>(['year']);
   const [test, setTest] = useState(false);
@@ -472,7 +474,7 @@ const Line = () => {
   //   }, 1000);
   // }, []);
 
-  const setTooltipValue = useCallback((d: ID3TooltipData<TimeValue>) => {
+  const setTooltipValue = useCallback((d: ID3TooltipDataMulti<TimeValue>) => {
     setTooltipState(d || null);
   }, []);
 
@@ -514,7 +516,7 @@ const Line = () => {
               withDots
               crosshair
             />
-            <ReactD3Tooltip data={tooltipState} valueFormatter={(val) => formatCurrency(Number(val))}/>
+            <ReactD3TooltipMulti data={tooltipState} valueFormatter={(val) => formatCurrency(Number(val))}/>
             <ReactD3Legend
               type='line'
               items={timeValueLegends}
@@ -538,7 +540,7 @@ const Line = () => {
 const Area = () => {
   const [data, setData] = useState<TimeValue[]>(timeValue);
   const [series, setSeries] = useState<ID3AreaLineSerie<TimeValue>[]>(timeValueSeries);
-  const [tooltipState, setTooltipState] = useState<ID3TooltipData<TimeValue> | null>(null);
+  const [tooltipState, setTooltipState] = useState<ID3TooltipDataMulti<TimeValue> | null>(null);
   const [legendItems, setLegendItems] = useState(timeValueLegends);
   const dataJoinKey = useRef<['year']>(['year']);
   const [test, setTest] = useState(false);
@@ -560,7 +562,7 @@ const Area = () => {
   //   }, 1000);
   // }, []);
 
-  const setTooltipValue = useCallback((d: ID3TooltipData<TimeValue>) => {
+  const setTooltipValue = useCallback((d: ID3TooltipDataMulti<TimeValue>) => {
     setTooltipState(d || null);
   }, []);
 
@@ -597,9 +599,9 @@ const Area = () => {
               series={series}
               mouseMove={setTooltipValue}
               mouseOut={removeTooltipValue}
-              withDots
+              withDots={false}
             />
-            <ReactD3Tooltip data={tooltipState} valueFormatter={(val) => formatCurrency(Number(val))}/>
+            <ReactD3TooltipMulti data={tooltipState} valueFormatter={(val) => formatCurrency(Number(val))}/>
             <ReactD3Legend
               type='line'
               items={timeValueLegends}
@@ -704,7 +706,7 @@ const coinsLegends = [
 const Coins = () => {
   const [data, setData] = useState(coinData);
   const [series, setSeries] = useState<ID3AreaLineSerie<CoinsMerge>[]>(coinsSeries);
-  const [tooltipState, setTooltipState] = useState<ID3TooltipData<CoinsMerge> | null>(null);
+  const [tooltipState, setTooltipState] = useState<ID3TooltipDataMulti<CoinsMerge> | null>(null);
   const [legendItems, setLegendItems] = useState(coinsLegends);
   const [keys, setKeys] = useState<D3NumberKey<CoinsMerge>[]>([
     'price_bitcoin',
@@ -724,7 +726,7 @@ const Coins = () => {
     });
   }, []);
 
-  const setTooltipValue = useCallback((d: ID3TooltipData<CoinsMerge>) => {
+  const setTooltipValue = useCallback((d: ID3TooltipDataMulti<CoinsMerge>) => {
     setTooltipState(d || null);
   }, []);
 
@@ -768,7 +770,7 @@ const Coins = () => {
               withDots={false}
               crosshair
             />
-            <ReactD3Tooltip
+            <ReactD3TooltipMulti
               data={tooltipState}
               labelFormatter={(val) => Intl.DateTimeFormat('pt-BR').format(new Date(val))}
             />
@@ -927,7 +929,7 @@ export default function Home() {
       {/* <Line/> */}
       {/* <Area/> */}
       {/* <Coins/> */}
-      <Scatter/>
+      {/* <Scatter/> */}
     </>
   );
 }

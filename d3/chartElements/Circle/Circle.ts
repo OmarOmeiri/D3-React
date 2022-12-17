@@ -2,12 +2,11 @@ import {
   BaseType,
   select,
   Selection,
-  zoom as D3Zoom,
 } from 'd3';
 import { genScale } from 'lullo-utils/Math';
 import { D3Classes } from '../../consts/classes';
 import { D3DataCatgAndLinear } from '../../dataTypes';
-import { D3ZoomHelper } from '../../helpers/d3Zoom';
+import { D3Zoom } from '../../helpers/d3Zoom';
 import { D3ScaleLinear } from '../../Scales';
 import D3ScaleBand from '../../Scales/ScaleBand';
 import D3ScaleLog from '../../Scales/ScaleLog';
@@ -19,10 +18,11 @@ import {
   D3StringKey,
   ID3CircleAttrs,
   ID3Events,
+  ID3TooltipDataSingle,
 } from '../../types';
 import { D3FormatCrosshair } from '../helpers/formatCrosshair';
-import { D3GetMousePosition } from '../Mouse/getMousePosition';
-import D3MouseRect from '../Mouse/MouseRect';
+import D3Mouse from '../Mouse/D3Mouse';
+import { D3GetMousePosition } from '../Mouse/helpers/getMousePosition';
 
 import type D3Chart from '../../Chart';
 
@@ -44,7 +44,7 @@ D extends Record<string, unknown>,
 
 export interface ID3Circle<
 D extends Record<string, unknown>,
-> extends ID3CircleAttrs<D>, ID3Events<D> {
+> extends ID3CircleAttrs<D>, Pick<ID3Events<D>, 'mouseMove' | 'mouseOut'> {
   chart: D3Chart
   data: D3DataCatgAndLinear<D>[],
   xScale: CircleScales<D>;
@@ -60,6 +60,7 @@ D extends Record<string, unknown>,
   disableZoom?: boolean,
   filter?: (d: D) => boolean
   crosshair?: boolean,
+  mouseOver: (d: ID3TooltipDataSingle<D>) => void;
   formatCrosshair?: {
     x?: (val: string | number | Date) => string
     y?: (val: string | number | Date) => string
@@ -94,12 +95,12 @@ D extends Record<string, unknown>,
   private strokeWidth: ID3CircleAttrs<D>['strokeWidth'];
   private strokeOpacity: ID3CircleAttrs<D>['strokeOpacity'];
   private transitionMs: number;
-  private mouseRect: D3MouseRect;
+  private mouse: D3Mouse;
   private disableZoom: boolean;
   private crosshair: boolean;
   private filter?: (d: D, index: number) => boolean;
   private mouseOut: Required<ID3Events<D>>['mouseOut'];
-  private mouseOver: Required<ID3Events<D>>['mouseOver'];
+  private mouseOver: (d: ID3TooltipDataSingle<D>) => void;
   private mouseMove: Required<ID3Events<D>>['mouseMove'];
   private formatCrosshair?: {
     x?: (val: string | number | Date) => string
@@ -158,7 +159,7 @@ D extends Record<string, unknown>,
     this.formatCrosshair = formatCrosshair;
     this.disableZoom = disableZoom;
     this.crosshair = crosshair;
-    this.mouseRect = new D3MouseRect(this.chart);
+    this.mouse = new D3Mouse(this.chart);
     this.mouseOut = mouseOut || (() => {});
     this.mouseMove = mouseMove || (() => {});
     this.mouseOver = mouseOver || (() => {});
@@ -210,9 +211,9 @@ D extends Record<string, unknown>,
 
   private mouseEventHandlers() {
     if (this.crosshair) {
-      this.mouseRect.appendCrosshair();
+      this.mouse.appendCrosshair();
     }
-    this.mouseRect.setEvents({
+    this.mouse.setEvents({
       mouseMove: (e, mouseCallback) => {
         const [x, y] = D3GetMousePosition(e, this.chart);
         const xVal = this.xScale.invert(x);
@@ -221,31 +222,19 @@ D extends Record<string, unknown>,
         const yScaled = this.getPosition(yVal, this.yScale.getScale());
         mouseCallback(xScaled, yScaled);
 
-        this.mouseRect.setCrosshairText(
+        this.mouse.setCrosshairText(
           this.formatCrosshair?.x ? this.formatCrosshair.x(xVal as any) : D3FormatCrosshair(xVal),
           this.formatCrosshair?.y ? this.formatCrosshair.y(yVal as any) : D3FormatCrosshair(yVal),
         );
       },
     });
     if (!this.disableZoom) {
-      const zoom = D3Zoom<SVGSVGElement, unknown>()
-        .scaleExtent([1, 20])
-        .extent([[
-          0,
-          0,
-        ], [
-          this.chart.dims.innerDims.width,
-          this.chart.dims.innerDims.height,
-        ]])
-        .translateExtent([[0, 0], [this.chart.dims.innerDims.width, this.chart.dims.innerDims.height]])
-        .on('zoom', (e) => {
-          D3ZoomHelper(e, this.xScale);
-          D3ZoomHelper(e, this.yScale);
-          this.updateScales(0);
-        });
-
-      this.chart.svg
-        .call(zoom);
+      D3Zoom({
+        chart: this.chart,
+        xScale: this.xScale,
+        yScale: this.yScale,
+        onZoom: () => { this.updateScales(0); },
+      });
     }
   }
 
@@ -262,9 +251,27 @@ D extends Record<string, unknown>,
       .attr('r', 0)
       .on('mousemove', (e, d) => this.mouseMove(d))
       .on('mouseover', function (e, d) {
-        select(this)
+        const circle = select(this);
+        circle
           .classed(D3Classes.events.hovered, true);
-        vis.mouseOver(d);
+        const x = vis.getPosition(d[vis.xKey], vis.xScale.getScale());
+        const y = vis.getPosition(d[vis.yKey], vis.yScale.getScale());
+        vis.mouseOver({
+          data: d,
+          position: {
+            x,
+            y,
+          },
+          attrs: {
+            fill: circle.attr('fill') || undefined,
+            fillOpacity: circle.attr('fill-opacity') || undefined,
+            stroke: circle.attr('stroke') || undefined,
+            strokeWidth: circle.attr('stroke-width') || undefined,
+            strokeOpacity: circle.attr('stroke-opacity'),
+            xKey: String(vis.xKey),
+            yKey: String(vis.yKey),
+          },
+        });
       })
       .on('mouseout', function () {
         select(this)

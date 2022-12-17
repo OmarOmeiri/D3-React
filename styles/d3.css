@@ -24,10 +24,9 @@
 .d3-axis-label-left {
   transform: translate(10, 0)
 }
+
 .d3-tooltip {
-  background-color: white;
-  padding: 1em;
-  color: black
+  transition: top 0.1s ease, left 0.1s ease;
 }
 
 .d3-hover {
@@ -43,13 +42,6 @@
   to {
     stroke-width: 2px;
   }
-}
-
-
-.d3-tooltip {
-  background-color: white;
-  border-radius: 2px;
-  transition: top 0.1s ease, left 0.1s ease;
 }
 
 
@@ -69,11 +61,6 @@
   border-radius: 2px;
   font-size: 0.9rem;
   position: relative;
-}
-
-.d3-axis-y-tooltip {
-  /* transform-origin: center;
-  transform: rotate(-90deg); */
 }
 
 

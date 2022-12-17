@@ -3,7 +3,7 @@ export const isHexColor = (color: string): boolean => (
 );
 
 export const isRgbColor = (color: string) => (
-  /rgba?\(\s*(25[0-5]|2[0-4]\d|1\d{1,2}|\d\d?)\s*,\s*(25[0-5]|2[0-4]\d|1\d{1,2}|\d\d?)\s*,\s*(25[0-5]|2[0-4]\d|1\d{1,2}|\d\d?)\s*,?\s*([01.]\.?\d?)?\s*\)/i
+  /rgba?\(\s*(25[0-5]|2[0-4]\d|1\d{1,2}|\d\d?)\s*,\s*(25[0-5]|2[0-4]\d|1\d{1,2}|\d\d?)\s*,\s*(25[0-5]|2[0-4]\d|1\d{1,2}|\d\d?)\s*,?\s*([01.]\.?\d{0,2})?\s*\)/i
     .test(color)
 );
 

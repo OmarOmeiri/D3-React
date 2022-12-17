@@ -4,7 +4,7 @@ import {
   ID3AllAttrs,
   ID3Attrs,
   ID3ShapeAttrs,
-  ID3TooltipData,
+  ID3TooltipDataMulti,
 } from '../../../types';
 
 import type {
@@ -30,7 +30,7 @@ export const filterAreaLineTooltipValues = <D extends Record<string, unknown>>(
   data: AreaLineData<D>[],
   xVal: string | number | Date | null,
   defaultAttrs: ID3ShapeAttrs<D> | ID3Attrs<D>,
-): ID3TooltipData<D> | undefined => {
+): ID3TooltipDataMulti<D> | undefined => {
   if (!tooltipTimeout) {
     const tooltipData = data.reduce((merged, dt) => {
       const dataWithAttributes = dt.data.reduce((values, d, i) => {
@@ -55,7 +55,7 @@ export const filterAreaLineTooltipValues = <D extends Record<string, unknown>>(
             },
           },
         };
-      }, {} as ID3TooltipData<D>);
+      }, {} as ID3TooltipDataMulti<D>);
 
       return {
         data: {
@@ -67,7 +67,7 @@ export const filterAreaLineTooltipValues = <D extends Record<string, unknown>>(
           ...dataWithAttributes.attrs,
         },
       };
-    }, {} as ID3TooltipData<D>);
+    }, {} as ID3TooltipDataMulti<D>);
 
     tooltipTimeout = setTimeout(() => {
       if (tooltipTimeout) {

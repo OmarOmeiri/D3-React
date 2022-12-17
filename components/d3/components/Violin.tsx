@@ -104,8 +104,8 @@ D extends Record<string, unknown>,
   ]);
 
   useEffect(() => {
-    if (chart && scales.length && violin.current) {
-      violin.current.updateScales();
+    if (chart && scales.length && violin.current && dims) {
+      violin.current.update();
     }
   }, [
     chart,

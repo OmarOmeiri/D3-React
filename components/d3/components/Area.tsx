@@ -21,7 +21,6 @@ ID3AreaLine<D>
 > & {
   yAxisId?: string,
   xAxisId?: string,
-  colorScaleId?: string,
 }>
 
 const getAreaScales = (
@@ -65,7 +64,6 @@ D extends Record<string, unknown>,
     crosshair,
     yAxisId,
     xAxisId,
-    colorScaleId,
     formatCrosshair,
   }: ReactD3AreaProps<D>) => {
   const area = useRef<Area<D> | null>(null);
@@ -126,18 +124,14 @@ D extends Record<string, unknown>,
   ]);
 
   useEffect(() => {
-    if (chart && scales.length && area.current) {
-      area.current.updateScales();
+    if (chart && scales.length && area.current && dims) {
+      area.current.update();
     }
   }, [
     chart,
     scales,
     dims,
     margin,
-    series,
-    yAxisId,
-    xAxisId,
-    colorScaleId,
   ]);
 
   return null;

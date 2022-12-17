@@ -4,26 +4,26 @@ import {
   curveCatmullRom,
   line,
   Selection,
-  zoom as D3Zoom,
+  Transition,
 } from 'd3';
 import { D3DataCatgAndLinear } from '../../dataTypes';
 import { D3Defined } from '../../helpers/d3Defined';
-import { D3ZoomHelper } from '../../helpers/d3Zoom';
+import { D3OnTransitionEnd } from '../../helpers/d3OnTransitionEnd';
+import { D3Zoom } from '../../helpers/d3Zoom';
 import { D3ScaleLinear } from '../../Scales';
 import D3ScaleBand from '../../Scales/ScaleBand';
 import D3ScaleLog from '../../Scales/ScaleLog';
 import D3ScaleTime from '../../Scales/ScaleTime';
 import {
-  D3NumberOrStringKey,
   D3NumberStringOrDateKey,
   ID3Attrs,
   ID3Events,
   ID3ShapeAttrs,
-  ID3TooltipData,
+  ID3TooltipDataMulti,
 } from '../../types';
 import { D3FormatCrosshair } from '../helpers/formatCrosshair';
-import { D3GetMousePosition } from '../Mouse/getMousePosition';
-import D3MouseRect from '../Mouse/MouseRect';
+import D3Mouse from '../Mouse/D3Mouse';
+import { D3GetMousePosition } from '../Mouse/helpers/getMousePosition';
 import { sortSeriesByAUC } from './helpers/AUC';
 import { D3AreaLineClasses } from './helpers/classes';
 import { filterAreaLineTooltipValues } from './helpers/tooltip';
@@ -56,7 +56,7 @@ D extends Record<string, unknown>,
 
 export interface ID3AreaLine<
 D extends Record<string, unknown>,
-> extends ID3Events<D, D, ID3TooltipData<D>> {
+> extends ID3Events<D, D, ID3TooltipDataMulti<D>> {
   chart: D3Chart
   data: D3DataCatgAndLinear<D>[],
   xScale: AreaLineScales<D>;
@@ -75,7 +75,7 @@ D extends Record<string, unknown>,
   }
 }
 
-type DotsSelection<
+type DotsData<
 D extends Record<string, unknown>,
 > = D3DataCatgAndLinear<D> & {
   __attrs__: ID3AreaLineSerie<D>;
@@ -87,6 +87,11 @@ D extends Record<string, unknown>,
   data: D3DataCatgAndLinear<D>[]
   attrs: ID3AreaLineSerie<D>
 }
+
+type PathTransition<D extends Record<string, unknown>> = Transition<SVGPathElement, AreaLineData<D>, BaseType, AreaLineData<D>>;
+type PathSelection<D extends Record<string, unknown>> = Selection<SVGPathElement, AreaLineData<D>, BaseType, AreaLineData<D>>
+type DotsSelection<D extends Record<string, unknown>> = Selection<SVGCircleElement, DotsData<D>, BaseType, AreaLineData<D>>;
+type DotsTransition<D extends Record<string, unknown>> = Transition<SVGCircleElement, DotsData<D>, BaseType, AreaLineData<D>>
 
 const DEFAULT_AREA_ATTRS: Record<keyof ID3ShapeAttrs<any>, string> = {
   stroke: 'white',
@@ -115,8 +120,8 @@ D extends Record<string, unknown>,
   private xScale: AreaLineScales<D>;
   private yScale: AreaLineScales<D>;
   private parentGroup!: Selection<SVGGElement, AreaLineData<D>, SVGGElement, unknown>;
-  private paths!: Selection<SVGPathElement, AreaLineData<D>, BaseType, AreaLineData<D>>;
-  private dots?: Selection<SVGCircleElement, DotsSelection<D>, BaseType, AreaLineData<D>>;
+  private paths!: PathSelection<D>;
+  private dots?: DotsSelection<D>;
   private data!: AreaLineData<D>[];
   private series: ID3AreaLineSerie<D>[];
   private alpha: number;
@@ -125,8 +130,8 @@ D extends Record<string, unknown>,
   private filter?: (d: D, index: number) => boolean;
   private mouseOut: Required<ID3Events<D>>['mouseOut'];
   private mouseOver: Required<ID3Events<D>>['mouseOver'];
-  private mouseMove: Required<ID3Events<D, D, ID3TooltipData<D>>>['mouseMove'];
-  private mouseRect: D3MouseRect;
+  private mouseMove: Required<ID3Events<D, D, ID3TooltipDataMulti<D>>>['mouseMove'];
+  private mouse: D3Mouse;
   private withDots: boolean;
   private type: 'area' | 'line';
   private defaultAttrs: {[k: string]: string};
@@ -156,7 +161,7 @@ D extends Record<string, unknown>,
     type,
   }: ID3AreaLine<D>) {
     this.chart = chart;
-    this.mouseRect = new D3MouseRect(this.chart);
+    this.mouse = new D3Mouse(this.chart);
     this.xScale = xScale;
     this.yScale = yScale;
     this.type = type;
@@ -180,7 +185,7 @@ D extends Record<string, unknown>,
     this.mouseMove = mouseMove || (() => {});
     this.mouseOver = mouseOver || (() => {});
     this.setData(data);
-    this.update(data);
+    this.pattern(data);
   }
 
   private setData(data: D3DataCatgAndLinear<D>[]) {
@@ -211,6 +216,7 @@ D extends Record<string, unknown>,
     const attr = key === 'fill' && !attrs.fill
       ? attrs.stroke
       : attrs[key];
+
     if (!attr) {
       return () => this.defaultAttrs[key] || '';
     }
@@ -227,30 +233,30 @@ D extends Record<string, unknown>,
         : 0
     );
   }
-  private pathGenerator(d: AreaLineData<D>, scales: {x?: D3AreaLineScales<D>, y?: D3AreaLineScales<D>} = {}) {
+  private pathGenerator(d: AreaLineData<D>) {
     return this.type === 'area'
       ? (
         area<AreaLineData<D>['data'][number]>()
           .defined((l) => D3Defined(l[d.attrs.xKey]) && D3Defined(l[d.attrs.yKey]))
-          .x((xd) => this.getPosition(xd[d.attrs.xKey], scales.x || this.xScale.getScale()))
+          .x((xd) => this.getPosition(xd[d.attrs.xKey], this.xScale.getScale()))
           .y0(this.chart.dims.innerDims.height)
-          .y1((yd) => this.getPosition(yd[d.attrs.yKey], scales.y || this.yScale.getScale()))
+          .y1((yd) => this.getPosition(yd[d.attrs.yKey], this.yScale.getScale()))
           .curve(curveCatmullRom.alpha(this.alpha))(d.data)
       )
       : (
         line<AreaLineData<D>['data'][number]>()
           .defined((l) => D3Defined(l[d.attrs.xKey]) && D3Defined(l[d.attrs.yKey]))
-          .x((xd) => this.getPosition(xd[d.attrs.xKey], scales.x || this.xScale.getScale()))
-          .y((yd) => this.getPosition(yd[d.attrs.yKey], scales.y || this.yScale.getScale()))
+          .x((xd) => this.getPosition(xd[d.attrs.xKey], this.xScale.getScale()))
+          .y((yd) => this.getPosition(yd[d.attrs.yKey], this.yScale.getScale()))
           .curve(curveCatmullRom.alpha(this.alpha))(d.data)
       );
   }
 
   private mouseEventHandlers() {
     if (this.crosshair) {
-      this.mouseRect.appendCrosshair();
+      this.mouse.appendCrosshair();
     }
-    this.mouseRect.setEvents({
+    this.mouse.setEvents({
       mouseMove: (e, mouseCallback) => {
         const [x, y] = D3GetMousePosition(e, this.chart);
         const xVal = this.xScale.invert(x);
@@ -259,10 +265,11 @@ D extends Record<string, unknown>,
         const yScaled = this.getPosition(yVal, this.yScale.getScale());
 
         mouseCallback(xScaled, yScaled);
-        this.mouseRect.setCrosshairText(
+        this.mouse.setCrosshairText(
           this.formatCrosshair?.x ? this.formatCrosshair.x(xVal as any) : D3FormatCrosshair(xVal),
           this.formatCrosshair?.y ? this.formatCrosshair.y(yVal as any) : D3FormatCrosshair(yVal),
         );
+
         if (this.tooltipIndex === xVal) return;
         if (this.tooltipIndex !== xVal) {
           this.tooltipIndex = xVal;
@@ -272,105 +279,105 @@ D extends Record<string, unknown>,
       },
     });
     if (!this.disableZoom) {
-      const zoom = D3Zoom<SVGSVGElement, unknown>()
-        .scaleExtent([1, 20])
-        .extent([[
-          0,
-          0,
-        ], [
-          this.chart.dims.innerDims.width,
-          this.chart.dims.innerDims.height,
-        ]])
-        .translateExtent([[0, 0], [this.chart.dims.innerDims.width, this.chart.dims.innerDims.height]])
-        .on('zoom', (e) => {
-          D3ZoomHelper(e, this.xScale);
-          D3ZoomHelper(e, this.yScale);
-          this.updateScales();
-        });
-
-      this.chart.svg
-        .call(zoom);
+      D3Zoom({
+        chart: this.chart,
+        xScale: this.xScale,
+        yScale: this.yScale,
+        onZoom: () => { this.update(0); },
+      });
     }
   }
 
-  private pathStart(paths: typeof this.paths) {
-    return paths
+  private pathStart<
+    T extends PathSelection<D>
+    | PathTransition<D>
+  >(paths: T): T {
+    return (paths as PathSelection<D>)
       .attr('clip-path', `url(#${this.chart.chartAreaClipId})`)
       .attr('class', D3AreaLineClasses[this.type].path)
-      .attr('stroke-width', 0)
       .attr('stroke', (d, i) => this.getAttr(d.attrs, 'stroke')(d as any, i))
       .attr('fill', (d, i) => this.getAttr(d.attrs, 'fill')(d as any, i))
+      .attr('d', (d) => this.pathGenerator(d))
       .attr('fill-opacity', 0)
-      .attr('d', (d) => this.pathGenerator(d));
+      .attr('stroke-width', 0) as T;
   }
 
-  private pathEnd(paths: typeof this.paths) {
-    return paths
+  private pathEnd<
+  T extends PathSelection<D>
+  | PathTransition<D>
+    >(paths: T): T {
+    return (paths as PathSelection<D>)
       .attr('stroke-width', (d, i) => this.getAttr(d.attrs, 'strokeWidth')(d as any, i))
-      .attr('fill-opacity', (d, i) => this.getAttr(d.attrs, 'fillOpacity')(d as any, i));
+      .attr('fill-opacity', (d, i) => this.getAttr(d.attrs, 'fillOpacity')(d as any, i))
+      .attr('d', (d) => this.pathGenerator(d)) as T;
   }
 
-  private dotsStart(dots: Exclude<typeof this.dots, undefined>) {
-    return dots
+  private dotsStart<
+  T extends DotsSelection<D>
+  | DotsTransition<D>
+  >(dots: T): T {
+    return (dots as DotsSelection<D>)
       .attr('clip-path', `url(#${this.chart.chartAreaClipId})`)
       .attr('r', 0)
       .attr('class', D3AreaLineClasses[this.type].dots)
       .attr('cx', (xd) => this.getPosition(xd[xd.__attrs__.xKey], this.xScale.getScale()))
-      .attr('cy', (yd) => this.getPosition(yd[yd.__attrs__.yKey], this.yScale.getScale()));
+      .attr('cy', (yd) => this.getPosition(yd[yd.__attrs__.yKey], this.yScale.getScale())) as T;
   }
 
-  private dotsEnd(dots: Exclude<typeof this.dots, undefined>) {
-    return dots
-      .attr('r', 4);
+  private dotsEnd<
+  T extends DotsSelection<D>
+  | DotsTransition<D>
+  >(dots: T): T {
+    return (dots as DotsSelection<D>)
+      .attr('r', 4)
+      .attr('cx', (xd) => this.getPosition(xd[xd.__attrs__.xKey], this.xScale.getScale()))
+      .attr('cy', (yd) => this.getPosition(yd[yd.__attrs__.yKey], this.yScale.getScale())) as T;
   }
 
-  private update(newData: D3DataCatgAndLinear<D>[]) {
+  private pattern(newData: D3DataCatgAndLinear<D>[]) {
     this.mouseEventHandlers();
     this.setData(newData);
-    this.updateGroups();
-    this.exitGroups();
+    this.groupDataJoin();
+    const exiting = this.exit();
     this.enterGroups();
-    this.updatePaths();
-    this.updateDots();
-    this.exitPaths();
-    this.exitDots();
-    this.enterPaths();
-    this.enterDots();
+    this.dataJoins();
+    const entering = this.enter();
+    this.onTransitionEnd(...entering, ...exiting);
   }
 
-  private updateGroups() {
+  private groupDataJoin() {
     this.parentGroup = this.chart.chart
-      .selectAll(`.${D3AreaLineClasses[this.type].paths}`)
-      .data(this.data, (_d) => {
-        const d = _d as AreaLineData<D>;
-        return d.attrs.name;
-      }) as unknown as typeof this.parentGroup;
+      .selectAll<SVGGElement, AreaLineData<D>>(`.${D3AreaLineClasses[this.type].paths}`)
+      .data(this.data, (d) => d.attrs.name);
   }
 
-  private exitGroups() {
-    this.dotsStart(
-      this.parentGroup
-        .exit()
-        .select(`.${D3AreaLineClasses[this.type].dotsGroup}`)
-        .selectAll<SVGCircleElement, DotsSelection<D>>('circle')
-        .transition()
-        .duration(this.transitionMs) as unknown as Exclude<typeof this.dots, undefined>,
-    );
+  private exit() {
+    const dotsExit = this.parentGroup
+      .exit()
+      .select(`.${D3AreaLineClasses[this.type].dotsGroup}`)
+      .selectAll<SVGCircleElement, DotsData<D>>('circle')
+      .transition()
+      .duration(this.transitionMs);
 
-    this.pathStart(
-      this.parentGroup
-        .exit()
-        .select(`.${D3AreaLineClasses[this.type].pathGroup}`)
-        .selectAll<SVGPathElement, AreaLineData<D>>('path')
-        .transition()
-        .duration(this.transitionMs) as unknown as typeof this.paths,
-    );
+    this.dotsStart(dotsExit);
 
+    const pathsExit = this.parentGroup
+      .exit()
+      .select(`.${D3AreaLineClasses[this.type].pathGroup}`)
+      .selectAll<SVGPathElement, AreaLineData<D>>('path')
+      .transition()
+      .duration(this.transitionMs);
+
+    this.pathStart(pathsExit);
+
+    pathsExit.remove();
+    dotsExit.remove();
     this.parentGroup
       .exit()
       .transition()
       .duration(this.transitionMs)
       .remove();
+    return [pathsExit, dotsExit];
   }
 
   private enterGroups() {
@@ -388,7 +395,7 @@ D extends Record<string, unknown>,
     this.parentGroup = parentEnter.merge(this.parentGroup);
   }
 
-  private updatePaths() {
+  private dataJoins() {
     const pathsGroup = this.parentGroup
       .select(`.${D3AreaLineClasses[this.type].pathGroup}`);
 
@@ -397,54 +404,30 @@ D extends Record<string, unknown>,
         const d = _d as AreaLineData<D>;
         return d.attrs.name;
       });
-  }
 
-  private updateDots() {
     if (this.withDots) {
       const dotsGroup = this.parentGroup
         .select(`.${D3AreaLineClasses[this.type].dotsGroup}`)
         .attr('fill', (d, i) => this.getAttr(d.attrs, 'fill')(d as any, i));
 
-      this.dots = dotsGroup.selectAll<SVGCircleElement, DotsSelection<D>>('circle')
+      this.dots = dotsGroup.selectAll<SVGCircleElement, DotsData<D>>('circle')
         .data((dt) => dt.data.map((d) => ({ ...d, __attrs__: dt.attrs })));
     }
   }
 
-  private exitPaths() {
-    this.pathStart(
-      this.paths
-        .exit()
-        .transition()
-        .duration(this.transitionMs) as unknown as typeof this.paths,
-    ).remove();
-  }
-
-  private exitDots() {
-    if (this.dots) {
-      this.dotsStart(
-        this.dots
-          .exit<DotsSelection<D>>()
-          .transition()
-          .duration(this.transitionMs) as unknown as typeof this.dots,
-      ).remove();
-    }
-  }
-
-  private enterPaths() {
+  private enter() {
     const pathsInit = this.pathStart(
       this.paths
         .enter()
         .append('path'),
     );
 
-    this.pathEnd(
+    const pathsEnter = this.pathEnd(
       pathsInit
         .transition()
-        .duration(this.transitionMs) as unknown as typeof this.paths,
+        .duration(this.transitionMs),
     );
-  }
 
-  private enterDots() {
     if (this.dots) {
       const dotsInit = this.dotsStart(
         this.dots
@@ -452,35 +435,44 @@ D extends Record<string, unknown>,
           .append('circle'),
       );
 
-      this.dotsEnd(
-      dotsInit
-        .transition()
-        .duration(this.transitionMs) as unknown as typeof this.dots,
+      const dotsEnter = this.dotsEnd(
+        dotsInit
+          .transition()
+          .duration(this.transitionMs),
       );
+      return [pathsEnter, dotsEnter];
     }
+    return [pathsEnter];
   }
 
-  updateScales({
-    x,
-    y,
-  }:{
-    x?: D3AreaLineScales<D>;
-    y?: D3AreaLineScales<D>;
-  } = {}) {
-    this.chart.chart
-      .selectAll<SVGPathElement, AreaLineData<D>>(`.${D3AreaLineClasses[this.type].path}`)
-      .attr('stroke-width', (d, i) => this.getAttr(d.attrs, 'strokeWidth')(d as any, i))
-      .attr('stroke', (d, i) => this.getAttr(d.attrs, 'stroke')(d as any, i))
-      .attr('d', (d) => this.pathGenerator(d, { x, y }));
+  private onTransitionEnd(
+    ...transitions: Transition<any, any, any, any>[]
+  ) {
+    D3OnTransitionEnd(...transitions)({
+      onResolve: () => this.update(),
+      onReject: () => this.update(),
+      onEmpty: () => this.update(),
+    });
+  }
+
+  update(transition?: number) {
+    this.pathEnd(
+      this.chart.chart
+        .selectAll<SVGPathElement, AreaLineData<D>>(`.${D3AreaLineClasses[this.type].path}`)
+        .transition()
+        .duration(transition ?? this.transitionMs),
+    );
 
     if (this.dots) {
-      this.chart.chart
-        .selectAll<SVGCircleElement, DotsSelection<D>>(`.${D3AreaLineClasses[this.type].dots}`)
-        .attr('r', 4)
-        .attr('cx', (xd) => this.getPosition(xd[xd.__attrs__.xKey], x || this.xScale.getScale()))
-        .attr('cy', (yd) => this.getPosition(yd[yd.__attrs__.yKey], y || this.yScale.getScale()));
+      this.dotsEnd(
+        this.chart.chart
+          .selectAll<SVGCircleElement, DotsData<D>>(`.${D3AreaLineClasses[this.type].dots}`)
+          .transition()
+          .duration(transition ?? this.transitionMs),
+      );
     }
   }
 }
 
 export default AreaLine;
+

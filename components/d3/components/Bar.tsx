@@ -151,16 +151,13 @@ D extends Record<string, unknown>,
 
   useEffect(() => {
     if (chart && bar.current && scales.length) {
-      bar.current.updateScales();
+      bar.current.update();
     }
   }, [
     chart,
     scales,
     dims,
     margin,
-    yAxisId,
-    xAxisId,
-    colorScaleId,
   ]);
 
   return null;

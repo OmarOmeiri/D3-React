@@ -49,15 +49,30 @@ Multi extends boolean = false
   mouseOut?: () => void
 }
 
-export interface ID3TooltipData<D extends Record<string, unknown>> {
-  data: D
-  attrs: {
-    [K in keyof D]: {
-      [A in keyof ID3AllAttrs<D>]?: string
-    } & {
-      name: string,
-      xKey: string,
-      yKey: string,
-    }
+export type ID3TooltipAttrs<D extends Record<string, unknown>> = {
+  [A in keyof ID3AllAttrs<D>]?: string
+} & {
+  name?: string,
+  xKey: string,
+  yKey: string,
+}
+
+export interface ID3TooltipDataMulti<D extends Record<string, unknown>> {
+  data: D,
+  position?: {
+    x: number,
+    y: number,
   }
+  attrs: {
+    [K in keyof D]?: ID3TooltipAttrs<D>
+  }
+}
+
+export interface ID3TooltipDataSingle<D extends Record<string, unknown>> {
+  data: D,
+  position?: {
+    x: number,
+    y: number,
+  }
+  attrs: ID3TooltipAttrs<D>
 }

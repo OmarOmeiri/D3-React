@@ -1,5 +1,5 @@
 import type D3Chart from '../../Chart';
-import { D3GetMousePosition } from '../Mouse/getMousePosition';
+import { D3GetMousePosition } from '../Mouse/helpers/getMousePosition';
 
 export interface ID3Tooltip {
   chart: D3Chart

@@ -1,3 +1,25 @@
+@value bg-color: rgba(7, 7, 7, 0.9);
+
+.TooltipWrapper {
+  border-radius: 2px;
+  background-color: bg-color
+}
+
+.TooltipWrapper * {
+  padding: 0 0.6em;
+}
+
+.TooltipLabel {
+  font-weight: bold;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.39);
+  text-shadow: 0px 0px 1px white
+}
+
+.TooltipContent {
+  padding: 0.3em 0.3em 0.6em;
+}
+
 .TooltipArrowUnder::after {
   content: "";
   position: absolute;
@@ -6,7 +28,7 @@
   margin-left: -6px;
   border-width: 6px;
   border-style: solid;
-  border-color: #fff transparent transparent transparent;
+  border-color: bg-color transparent transparent transparent;
 }
 
 .TooltipArrowLeft::after {
@@ -17,7 +39,7 @@
   margin-left: -6px;
   border-width: 6px;
   border-style: solid;
-  border-color: transparent #fff transparent transparent ;
+  border-color: transparent bg-color transparent transparent ;
 }
 
 .TooltipArrowTop::after {
@@ -28,7 +50,7 @@
   margin-left: -6px;
   border-width: 6px;
   border-style: solid;
-  border-color: transparent transparent #fff transparent;
+  border-color: transparent transparent bg-color transparent;
 }
 
 .TooltipArrowRight::after {
@@ -39,6 +61,6 @@
   margin-left: -6px;
   border-width: 6px;
   border-style: solid;
-  border-color: transparent transparent transparent #fff;
+  border-color: transparent transparent transparent bg-color;
 }
 
