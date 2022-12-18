@@ -154,17 +154,14 @@ D extends Record<string, unknown>,
   ]);
 
   useEffect(() => {
-    if (chart && scales.length && circle.current) {
-      circle.current.updateScales();
+    if (chart && scales.length && circle.current && dims) {
+      circle.current.update();
     }
   }, [
     chart,
     scales,
     dims,
     margin,
-    yAxisId,
-    xAxisId,
-    colorScaleId,
   ]);
 
   return null;

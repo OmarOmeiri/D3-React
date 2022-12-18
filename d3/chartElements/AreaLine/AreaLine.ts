@@ -211,8 +211,6 @@ D extends Record<string, unknown>,
     attrs: AreaLineData<D>['attrs'],
     key: keyof ID3ShapeAttrs<D>,
   ): ((d: D3DataCatgAndLinear<D>, index: number) => string) {
-    if (this.type === 'line' && key === 'fill') return () => 'none';
-
     const attr = key === 'fill' && !attrs.fill
       ? attrs.stroke
       : attrs[key];
@@ -296,7 +294,7 @@ D extends Record<string, unknown>,
       .attr('clip-path', `url(#${this.chart.chartAreaClipId})`)
       .attr('class', D3AreaLineClasses[this.type].path)
       .attr('stroke', (d, i) => this.getAttr(d.attrs, 'stroke')(d as any, i))
-      .attr('fill', (d, i) => this.getAttr(d.attrs, 'fill')(d as any, i))
+      .attr('fill', (d, i) => (this.type === 'line' ? 'none' : this.getAttr(d.attrs, 'fill')(d as any, i)))
       .attr('d', (d) => this.pathGenerator(d))
       .attr('fill-opacity', 0)
       .attr('stroke-width', 0) as T;
@@ -352,26 +350,24 @@ D extends Record<string, unknown>,
   }
 
   private exit() {
-    const dotsExit = this.parentGroup
-      .exit()
-      .select(`.${D3AreaLineClasses[this.type].dotsGroup}`)
-      .selectAll<SVGCircleElement, DotsData<D>>('circle')
-      .transition()
-      .duration(this.transitionMs);
+    const dotsExit = this.dotsStart(
+      this.parentGroup
+        .exit()
+        .select(`.${D3AreaLineClasses[this.type].dotsGroup}`)
+        .selectAll<SVGCircleElement, DotsData<D>>('circle')
+        .transition()
+        .duration(this.transitionMs),
+    ).remove();
 
-    this.dotsStart(dotsExit);
+    const pathsExit = this.pathStart(
+      this.parentGroup
+        .exit()
+        .select(`.${D3AreaLineClasses[this.type].pathGroup}`)
+        .selectAll<SVGPathElement, AreaLineData<D>>('path')
+        .transition()
+        .duration(this.transitionMs),
+    ).remove();
 
-    const pathsExit = this.parentGroup
-      .exit()
-      .select(`.${D3AreaLineClasses[this.type].pathGroup}`)
-      .selectAll<SVGPathElement, AreaLineData<D>>('path')
-      .transition()
-      .duration(this.transitionMs);
-
-    this.pathStart(pathsExit);
-
-    pathsExit.remove();
-    dotsExit.remove();
     this.parentGroup
       .exit()
       .transition()
@@ -449,28 +445,59 @@ D extends Record<string, unknown>,
     ...transitions: Transition<any, any, any, any>[]
   ) {
     D3OnTransitionEnd(...transitions)({
-      onResolve: () => this.update(),
-      onReject: () => this.update(),
-      onEmpty: () => this.update(),
+      onResolve: () => this.update().new(),
+      onReject: () => this.update().new(),
+      onEmpty: () => this.update().new(),
     });
   }
 
-  update(transition?: number) {
-    this.pathEnd(
-      this.chart.chart
-        .selectAll<SVGPathElement, AreaLineData<D>>(`.${D3AreaLineClasses[this.type].path}`)
-        .transition()
-        .duration(transition ?? this.transitionMs),
-    );
+  private getUpdateSelection(all?: true) {
+    return all
+      ? {
+        paths: this.chart.chart
+          .selectAll<SVGPathElement, AreaLineData<D>>(`.${D3AreaLineClasses[this.type].paths}`) as PathSelection<D>,
+        dots: this.chart.chart
+          .selectAll<SVGCircleElement, DotsData<D>>(`.${D3AreaLineClasses[this.type].dots}`) as DotsSelection<D>,
+      }
+      : {
+        paths: this.paths,
+        dots: this.dots,
+      };
+  }
 
-    if (this.dots) {
-      this.dotsEnd(
-        this.chart.chart
-          .selectAll<SVGCircleElement, DotsData<D>>(`.${D3AreaLineClasses[this.type].dots}`)
-          .transition()
-          .duration(transition ?? this.transitionMs),
-      );
-    }
+  update(transition?: number) {
+    return {
+      new: () => {
+        // const updtSelection = this.getUpdateSelection();
+        this.pathEnd(
+          this.chart.chart
+            .selectAll<SVGPathElement, AreaLineData<D>>(`.${D3AreaLineClasses[this.type].paths}`)
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+        if (this.dots) {
+          this.chart.chart
+            .selectAll<SVGCircleElement, DotsData<D>>(`.${D3AreaLineClasses[this.type].dots}`)
+            .transition()
+            .duration(transition ?? this.transitionMs);
+        }
+      },
+      all: () => {
+        // const updtSelection = this.getUpdateSelection(true);
+        this.pathEnd(
+          this.chart.chart
+            .selectAll<SVGPathElement, AreaLineData<D>>(`.${D3AreaLineClasses[this.type].paths}`)
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+        if (this.dots) {
+          this.chart.chart
+            .selectAll<SVGCircleElement, DotsData<D>>(`.${D3AreaLineClasses[this.type].dots}`)
+            .transition()
+            .duration(transition ?? this.transitionMs);
+        }
+      },
+    };
   }
 }
 

@@ -105,15 +105,13 @@ D extends Record<string, unknown>,
 
   useEffect(() => {
     if (chart && scales.length && violin.current && dims) {
-      violin.current.update();
+      violin.current.update().all();
     }
   }, [
     chart,
     scales,
     dims,
     margin,
-    yAxisId,
-    xAxisId,
   ]);
 
   return null;

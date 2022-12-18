@@ -222,6 +222,7 @@ D extends Record<string, unknown>,
   >(violins: T): T {
     return (violins as ViolinSelection<D>)
       .attr('class', D3Classes.chartElements.violin.violin)
+      .attr('fill-opacity', 0)
       .attr('d', (d) => (
         area()
           .x0(() => (this.xScale.getScale().bandwidth() / 2))
@@ -269,13 +270,14 @@ D extends Record<string, unknown>,
   }
 
   private exit() {
-    const exiting = this.parentGroup
-      .exit()
-      .selectAll(`.${D3Classes.chartElements.violin.violinGroup}`)
-      .transition()
-      .duration(this.transitionMs);
+    const exiting = this.pathsStart(
+      this.group
+        .exit()
+        .selectAll<SVGPathElement, BinnedData<D>[number]>(`.${D3Classes.chartElements.violin.violin}`)
+        .transition()
+        .duration(this.transitionMs),
+    ).remove();
 
-    exiting.remove();
     this.group
       .exit()
       .transition()
@@ -318,10 +320,24 @@ D extends Record<string, unknown>,
     ...transitions: Transition<any, any, any, any>[]
   ) {
     D3OnTransitionEnd(...transitions)({
-      onResolve: () => this.update(),
-      onReject: () => this.update(),
-      onEmpty: () => this.update(),
+      onResolve: () => this.update().new(),
+      onReject: () => this.update().new(),
+      onEmpty: () => this.update().new(),
     });
+  }
+
+  private getUpdateSelection(all?: true) {
+    return all
+      ? {
+        paths: this.parentGroup
+          .selectAll<SVGPathElement, BinnedData<D>[number]>(`.${D3Classes.chartElements.violin.violin}`),
+        groups: this.parentGroup
+          .selectAll<SVGGElement, BinnedData<D>[number]>(`.${D3Classes.chartElements.violin.violinGroup}`),
+      }
+      : {
+        paths: this.violin,
+        groups: this.group,
+      };
   }
 
   update(transition?: number) {
@@ -329,18 +345,34 @@ D extends Record<string, unknown>,
       .domain([-this.binsMax, this.binsMax])
       .range([0, this.xScale.getScale().bandwidth()]);
 
-    this.pathsEnd(
-      this.parentGroup
-        .selectAll<SVGPathElement, BinnedData<D>[number]>(`.${D3Classes.chartElements.violin.violin}`)
-        .transition()
-        .duration(transition ?? this.transitionMs),
-    );
-
-    this.parentGroup
-      .selectAll<SVGGElement, BinnedData<D>[number]>(`.${D3Classes.chartElements.violin.violinGroup}`)
-      .transition()
-      .duration(transition ?? this.transitionMs)
-      .attr('transform', (d) => (`translate(${this.xScale.getScale()(d.attrs.name)} ,0)`));
+    return {
+      new: () => {
+        this.pathsEnd(
+          this.getUpdateSelection()
+            .paths
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+        this.getUpdateSelection()
+          .groups
+          .transition()
+          .duration(transition ?? this.transitionMs)
+          .attr('transform', (d) => (`translate(${this.xScale.getScale()(d.attrs.name)} ,0)`));
+      },
+      all: () => {
+        this.pathsEnd(
+          this.getUpdateSelection(true)
+            .paths
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+        this.getUpdateSelection(true)
+          .groups
+          .transition()
+          .duration(transition ?? this.transitionMs)
+          .attr('transform', (d) => (`translate(${this.xScale.getScale()(d.attrs.name)} ,0)`));
+      },
+    };
   }
 }
 

@@ -125,7 +125,7 @@ D extends Record<string, unknown>,
 
   useEffect(() => {
     if (chart && scales.length && area.current && dims) {
-      area.current.update();
+      area.current.update().all();
     }
   }, [
     chart,

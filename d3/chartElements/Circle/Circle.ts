@@ -2,10 +2,12 @@ import {
   BaseType,
   select,
   Selection,
+  Transition,
 } from 'd3';
 import { genScale } from 'lullo-utils/Math';
 import { D3Classes } from '../../consts/classes';
 import { D3DataCatgAndLinear } from '../../dataTypes';
+import { D3OnTransitionEnd } from '../../helpers/d3OnTransitionEnd';
 import { D3Zoom } from '../../helpers/d3Zoom';
 import { D3ScaleLinear } from '../../Scales';
 import D3ScaleBand from '../../Scales/ScaleBand';
@@ -67,6 +69,9 @@ D extends Record<string, unknown>,
   }
 }
 
+type CirclesSelection<D extends Record<string, unknown>> = Selection<SVGCircleElement, D3DataCatgAndLinear<D>, SVGGElement, unknown>;
+type CirclesTransition<D extends Record<string, unknown>> = Transition<SVGCircleElement, D3DataCatgAndLinear<D>, SVGGElement, unknown>;
+
 const DEFAULT_RADIUS_NORM = {
   max: 20,
   min: 5,
@@ -80,7 +85,7 @@ D extends Record<string, unknown>,
   private yScale: CircleScales<D>;
   private colorScale?: D3ScaleOrdinal<D>;
   private colorKey?: D3StringKey<D>;
-  private circles!: Selection<SVGCircleElement, D3DataCatgAndLinear<D>, SVGGElement, unknown>;
+  private circles!: CirclesSelection<D>;
   private data!: D3DataCatgAndLinear<D>[];
   private yKey: D3NumberOrStringKey<D>;
   private xKey: D3NumberOrStringKey<D>;
@@ -164,7 +169,7 @@ D extends Record<string, unknown>,
     this.mouseMove = mouseMove || (() => {});
     this.mouseOver = mouseOver || (() => {});
     this.setData(data);
-    this.update(data);
+    this.pattern(data);
   }
 
   private setData(data: D3DataCatgAndLinear<D>[]) {
@@ -233,22 +238,70 @@ D extends Record<string, unknown>,
         chart: this.chart,
         xScale: this.xScale,
         yScale: this.yScale,
-        onZoom: () => { this.updateScales(0); },
+        onZoom: () => { this.update(0); },
       });
     }
   }
 
-  private circleStart(circles: typeof this.circles) {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const vis = this;
-    return circles
+  private circleStart<
+  T extends CirclesSelection<D>
+  | CirclesTransition<D>
+  >(circles: T): T {
+    return (circles as CirclesSelection<D>)
       .attr('stroke-width', 0)
       .attr('fill-opacity', 0)
       .attr('clip-path', `url(#${this.chart.chartAreaClipId})`)
       .attr('class', D3Classes.chartElements.circle.circle)
       .attr('cy', (d) => this.getPosition(d[this.yKey], this.yScale.getScale()))
       .attr('cx', (d) => this.getPosition(d[this.xKey], this.xScale.getScale()))
-      .attr('r', 0)
+      .attr('r', 0) as unknown as T;
+  }
+
+  private circleEnd<
+  T extends CirclesSelection<D>
+  | CirclesTransition<D>
+  >(circles: T): T {
+    return (circles as CirclesSelection<D>)
+      .attr('fill', this.getAttr('fill'))
+      .attr('stroke', this.getAttr('stroke'))
+      .attr('stroke-width', this.getAttr('strokeWidth'))
+      .attr('fill-opacity', this.getAttr('fillOpacity'))
+      .attr('cy', (d) => this.getPosition(d[this.yKey], this.yScale.getScale()))
+      .attr('cx', (d) => this.getPosition(d[this.xKey], this.xScale.getScale()))
+      .attr('r', (d) => {
+        const { rKey } = this;
+        if (rKey) {
+          return this.radiusScaler(d[rKey]);
+        }
+        return d[this.rKey as keyof D] || this.radius || 5;
+      }) as T;
+  }
+
+  private pattern(newData: D3DataCatgAndLinear<D>[]) {
+    this.mouseEventHandlers();
+    this.setData(newData);
+    this.circles = this.chart.chart
+      .selectAll<SVGCircleElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.circle.circle}`)
+      .data(this.data, (d, i) => {
+        if (this.dataJoinKey) return this.dataJoinKey(d);
+        return i;
+      });
+
+    const exiting = this.exit();
+    const entering = this.enter();
+    this.onTransitionEnd(entering, exiting);
+  }
+
+  private enter() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const vis = this;
+
+    const circlesInit = this.circleStart(
+      this.circles
+        .enter()
+        .append('circle'),
+    );
+    circlesInit
       .on('mousemove', (e, d) => this.mouseMove(d))
       .on('mouseover', function (e, d) {
         const circle = select(this);
@@ -278,90 +331,51 @@ D extends Record<string, unknown>,
           .classed(D3Classes.events.hovered, false);
 
         vis.mouseOut();
-      }) as unknown as typeof this.circles;
-  }
-
-  private circleEnd(circles: typeof this.circles) {
-    return circles
-      .attr('fill', this.getAttr('fill'))
-      .attr('stroke', this.getAttr('stroke'))
-      .attr('stroke-width', this.getAttr('strokeWidth'))
-      .attr('fill-opacity', this.getAttr('fillOpacity'))
-      .attr('cy', (d) => this.getPosition(d[this.yKey], this.yScale.getScale()))
-      .attr('cx', (d) => this.getPosition(d[this.xKey], this.xScale.getScale()))
-      .attr('r', (d) => {
-        const { rKey } = this;
-        if (rKey) {
-          return this.radiusScaler(d[rKey]);
-        }
-        return d[this.rKey as keyof D] || this.radius || 5;
-      }) as unknown as typeof this.circles;
-  }
-
-  update(newData: D3DataCatgAndLinear<D>[]) {
-    this.mouseEventHandlers();
-    this.setData(newData);
-    this.circles = this.chart.chart
-      .selectAll<SVGCircleElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.circle.circle}`)
-      .data(this.data, (d, i) => {
-        if (this.dataJoinKey) return this.dataJoinKey(d);
-        return i;
       });
 
-    this.exit();
-    this.circleEnd(
-      this.circles
-        .transition()
-        .duration(this.transitionMs) as unknown as typeof this.circles,
-    );
-    this.enter();
-  }
-
-  enter() {
-    const circlesInit = this.circleStart(
-      this.circles
-        .enter()
-        .append('circle'),
-    );
-
-    this.circleEnd(
+    return this.circleEnd(
       circlesInit
         .transition()
-        .duration(this.transitionMs) as unknown as typeof this.circles,
+        .duration(this.transitionMs),
     );
   }
 
-  exit() {
-    this.circles
-      .exit()
-      .attr('fill-opacity', 1)
-      .transition()
-      .duration(this.transitionMs)
-      .attr('r', 0)
-      .attr('fill-opacity', 0)
-      .remove();
+  private exit() {
+    const exiting = this.circleStart(
+      this.circles
+        .exit<D3DataCatgAndLinear<D>>()
+        .transition()
+        .duration(this.transitionMs),
+    ).remove();
+
+    // exiting.remove();
+    return exiting;
+  }
+  private onTransitionEnd(
+    ...transitions: Transition<any, any, any, any>[]
+  ) {
+    D3OnTransitionEnd(...transitions)({
+      onResolve: () => this.update(),
+      onReject: () => this.update(),
+      onEmpty: () => this.update(),
+    });
   }
 
-  updateScales(transition?: number) {
-    this.chart.chart
-      .selectAll<BaseType, D3DataCatgAndLinear<D>>(
-        `.${D3Classes.chartElements.circle.circle}`,
-      )
-      .attr('fill', this.getAttr('fill'))
-      .attr('stroke', this.getAttr('stroke'))
-      .attr('stroke-width', this.getAttr('strokeWidth'))
-      .attr('fill-opacity', this.getAttr('fillOpacity'))
-      .transition()
-      .duration(transition || this.transitionMs)
-      .attr('cy', (d) => this.getPosition(d[this.yKey], this.yScale.getScale()))
-      .attr('cx', (d) => this.getPosition(d[this.xKey], this.xScale.getScale()))
-      .attr('r', (d) => {
-        const { rKey } = this;
-        if (rKey) {
-          return this.radiusScaler(d[rKey]);
-        }
-        return d[this.rKey as keyof D] || this.radius || 5;
-      });
+  update(transition?: number) {
+    // this.circleEnd(
+    //   this.chart.chart
+    //     .selectAll<SVGCircleElement, D3DataCatgAndLinear<D>>(
+    //       `.${D3Classes.chartElements.circle.circle}`,
+    //     )
+    //     .transition()
+    //     .duration(transition ?? this.transitionMs),
+    // );
+
+    this.circleEnd(
+      this.circles
+        .transition()
+        .duration(transition ?? this.transitionMs),
+    );
   }
 }
 

@@ -245,12 +245,6 @@ D extends Record<string, unknown>,
         return i;
       });
 
-    this.barsEnd(
-      this.bars
-        .transition()
-        .duration(this.transitionMs) as unknown as typeof this.bars,
-    );
-
     const exiting = this.exit();
     const entering = this.enter();
     this.onTransitionEnd(entering, exiting);
@@ -309,9 +303,8 @@ D extends Record<string, unknown>,
         .exit<D3DataCatgAndLinear<D>>()
         .transition()
         .duration(this.transitionMs),
-    );
+    ).remove();
 
-    exiting.remove();
     return exiting;
   }
 
@@ -327,8 +320,7 @@ D extends Record<string, unknown>,
 
   update(transition?: number) {
     this.barsEnd(
-      this.parentGroup
-        .selectAll<SVGRectElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.bar.bar}`)
+      this.bars
         .transition()
         .duration(transition ?? this.transitionMs),
     );

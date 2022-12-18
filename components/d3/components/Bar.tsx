@@ -150,7 +150,7 @@ D extends Record<string, unknown>,
   ]);
 
   useEffect(() => {
-    if (chart && bar.current && scales.length) {
+    if (chart && bar.current && scales.length && dims) {
       bar.current.update();
     }
   }, [

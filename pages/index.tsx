@@ -599,7 +599,7 @@ const Area = () => {
               series={series}
               mouseMove={setTooltipValue}
               mouseOut={removeTooltipValue}
-              withDots={false}
+              withDots={true}
             />
             <ReactD3TooltipMulti data={tooltipState} valueFormatter={(val) => formatCurrency(Number(val))}/>
             <ReactD3Legend
@@ -924,12 +924,12 @@ const Violin = () => {
 export default function Home() {
   return (
     <>
-      {/* <Violin/> */}
+      <Violin/>
       <Bar/>
-      {/* <Line/> */}
-      {/* <Area/> */}
+      <Line/>
+      <Area/>
       {/* <Coins/> */}
-      {/* <Scatter/> */}
+      <Scatter/>
     </>
   );
 }
