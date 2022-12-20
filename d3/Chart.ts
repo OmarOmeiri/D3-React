@@ -14,6 +14,8 @@ class D3Chart {
   public defs!: Selection<SVGDefsElement, unknown, null, undefined>;
   public dims: D3Dimensions;
   public id: string;
+  public zoom?: object;
+  private onZoomSubscribers = new Set<(zoom: object) => void>();
   public chartAreaClipId: string;
   private chartAreaRectClip!: Selection<SVGClipPathElement, unknown, null, undefined>;
 
@@ -51,7 +53,7 @@ class D3Chart {
     this.appendDefs();
   }
 
-  appendChartArea() {
+  private appendChartArea() {
     this.chart = this.svg
       .append('g')
       .attr('class', 'd3-chart')
@@ -63,7 +65,7 @@ class D3Chart {
       .attr('opacity', 1);
   }
 
-  appendDefs() {
+  private appendDefs() {
     this.defs = this.chart
       .append('defs');
 
@@ -79,7 +81,7 @@ class D3Chart {
       .attr('height', this.dims.innerDims.height);
   }
 
-  updateDims(dims: ID3Dimensions) {
+  private updateDims(dims: ID3Dimensions) {
     if (dims) this.dims.setDims(dims);
     this.chart
       .attr('transform', `translate(${this.dims.margin.left}, ${this.dims.margin.top})`);
@@ -90,6 +92,18 @@ class D3Chart {
       .attr('y', 0)
       .attr('width', this.dims.innerDims.width)
       .attr('height', this.dims.innerDims.height);
+  }
+
+  private setZoom(transform: any) {
+    this.zoom = transform;
+    const { zoom } = this;
+    if (zoom) {
+      this.onZoomSubscribers.forEach((callback) => callback(zoom));
+    }
+  }
+
+  zoomSubscribe(callback: (zoom: object) => void) {
+    this.onZoomSubscribers.add(callback);
   }
 }
 

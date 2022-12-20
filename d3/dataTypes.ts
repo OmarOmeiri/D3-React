@@ -35,5 +35,16 @@ D extends Record<string, unknown>,
 > = D & {
   [Key in D3DateKey<D>]: Date | null
 } & {
-  [Key in D3NumberKey<D>]: number
+  [Key in D3NumberKey<D>]: number | null
 }
+
+export type D3DataCatgTimeAndLinear<
+D extends Record<string, unknown>,
+> = D & {
+  [Key in D3DateKey<D>]: Date | null
+} & {
+  [Key in D3NumberKey<D>]: number | null
+} & {
+  [Key in D3StringKey<D>]: string
+}
+

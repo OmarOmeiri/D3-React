@@ -155,7 +155,7 @@ D extends Record<string, unknown>,
 
   useEffect(() => {
     if (chart && scales.length && circle.current && dims) {
-      circle.current.update();
+      circle.current.update().all();
     }
   }, [
     chart,
@@ -169,6 +169,14 @@ D extends Record<string, unknown>,
   const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof ReactCircleProps<any>)[];
   for (const key of keys) {
     if (key === 'dataJoinKey') {
+      if (
+        typeof prev.dataJoinKey === 'function'
+        && typeof next.dataJoinKey === 'function'
+      ) {
+        if (prev.dataJoinKey.toString() !== next.dataJoinKey.toString()) return false;
+        continue;
+      }
+
       if (!isEqual(prev.dataJoinKey, next.dataJoinKey)) return false;
       continue;
     }
@@ -181,4 +189,5 @@ D extends Record<string, unknown>,
   return true;
 });
 
+(ReactD3Circle as React.FC).displayName = 'ReactD3Circle';
 export default ReactD3Circle;

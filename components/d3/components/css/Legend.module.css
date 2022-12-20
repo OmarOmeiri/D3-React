@@ -35,7 +35,7 @@
   pointer-events: none;
 }
 
-.LegendItemActive svg circle {
+.LegendItemActive svg *[data-fillable] {
   fill: currentColor !important;
 }
 

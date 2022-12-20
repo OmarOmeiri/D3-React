@@ -1,5 +1,4 @@
 import {
-  BaseType,
   select,
   Selection,
   Transition,
@@ -9,11 +8,11 @@ import { D3Classes } from '../../consts/classes';
 import { D3DataCatgAndLinear } from '../../dataTypes';
 import { D3OnTransitionEnd } from '../../helpers/d3OnTransitionEnd';
 import { D3Zoom } from '../../helpers/d3Zoom';
-import { D3ScaleLinear } from '../../Scales';
-import D3ScaleBand from '../../Scales/ScaleBand';
-import D3ScaleLog from '../../Scales/ScaleLog';
 import D3ScaleOrdinal from '../../Scales/ScaleOrdinal';
-import D3ScaleTime from '../../Scales/ScaleTime';
+import {
+  D3AxedScales,
+  TD3AxedScales,
+} from '../../Scales/types';
 import {
   D3NumberKey,
   D3NumberOrStringKey,
@@ -28,31 +27,15 @@ import { D3GetMousePosition } from '../Mouse/helpers/getMousePosition';
 
 import type D3Chart from '../../Chart';
 
-type CircleScales<
-D extends Record<string, unknown>,
-> =
-| D3ScaleLinear<D>
-| D3ScaleBand<D>
-| D3ScaleLog<D>
-| D3ScaleTime<D>
-
-type D3CircleScales<
-D extends Record<string, unknown>,
-> =
-| D3ScaleLinear<D>['scale']
-| D3ScaleBand<D>['scale']
-| D3ScaleLog<D>['scale']
-| D3ScaleTime<D>['scale']
-
 export interface ID3Circle<
 D extends Record<string, unknown>,
 > extends ID3CircleAttrs<D>, Pick<ID3Events<D>, 'mouseMove' | 'mouseOut'> {
   chart: D3Chart
   data: D3DataCatgAndLinear<D>[],
-  xScale: CircleScales<D>;
-  yScale: CircleScales<D>;
+  xScale: D3AxedScales<D>;
+  yScale: D3AxedScales<D>;
   colorScale?: D3ScaleOrdinal<D>;
-  colorKey?: D3StringKey<D>,
+  colorKey?: D3NumberOrStringKey<D>,
   xKey: D3NumberOrStringKey<D>,
   yKey: D3NumberOrStringKey<D>,
   rKey?: D3NumberKey<D>,
@@ -62,7 +45,7 @@ D extends Record<string, unknown>,
   disableZoom?: boolean,
   filter?: (d: D) => boolean
   crosshair?: boolean,
-  mouseOver: (d: ID3TooltipDataSingle<D>) => void;
+  mouseOver?: (d: ID3TooltipDataSingle<D>) => void;
   formatCrosshair?: {
     x?: (val: string | number | Date) => string
     y?: (val: string | number | Date) => string
@@ -73,7 +56,7 @@ type CirclesSelection<D extends Record<string, unknown>> = Selection<SVGCircleEl
 type CirclesTransition<D extends Record<string, unknown>> = Transition<SVGCircleElement, D3DataCatgAndLinear<D>, SVGGElement, unknown>;
 
 const DEFAULT_RADIUS_NORM = {
-  max: 20,
+  max: 25,
   min: 5,
 };
 
@@ -81,10 +64,10 @@ class Circle<
 D extends Record<string, unknown>,
 > {
   private chart: D3Chart;
-  private xScale: CircleScales<D>;
-  private yScale: CircleScales<D>;
+  private xScale: D3AxedScales<D>;
+  private yScale: D3AxedScales<D>;
   private colorScale?: D3ScaleOrdinal<D>;
-  private colorKey?: D3StringKey<D>;
+  private colorKey?: D3NumberOrStringKey<D>;
   private circles!: CirclesSelection<D>;
   private data!: D3DataCatgAndLinear<D>[];
   private yKey: D3NumberOrStringKey<D>;
@@ -183,7 +166,7 @@ D extends Record<string, unknown>,
       : (n: number) => n;
   }
 
-  private getPosition(v: any, scale: D3CircleScales<D>) {
+  private getPosition(v: any, scale: TD3AxedScales<D>) {
     return Number(scale(v)) + (
       'bandwidth' in scale
         ? (scale.bandwidth() / 2)
@@ -238,7 +221,7 @@ D extends Record<string, unknown>,
         chart: this.chart,
         xScale: this.xScale,
         yScale: this.yScale,
-        onZoom: () => { this.update(0); },
+        onZoom: () => { this.update(0).all(); },
       });
     }
   }
@@ -292,24 +275,16 @@ D extends Record<string, unknown>,
     this.onTransitionEnd(entering, exiting);
   }
 
-  private enter() {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const vis = this;
-
-    const circlesInit = this.circleStart(
-      this.circles
-        .enter()
-        .append('circle'),
-    );
-    circlesInit
+  private setCircleEvents(circle: CirclesSelection<D>) {
+    circle
       .on('mousemove', (e, d) => this.mouseMove(d))
-      .on('mouseover', function (e, d) {
-        const circle = select(this);
+      .on('mouseover', (e, d) => {
+        const circle = select(e.currentTarget);
         circle
           .classed(D3Classes.events.hovered, true);
-        const x = vis.getPosition(d[vis.xKey], vis.xScale.getScale());
-        const y = vis.getPosition(d[vis.yKey], vis.yScale.getScale());
-        vis.mouseOver({
+        const x = this.getPosition(d[this.xKey], this.xScale.getScale());
+        const y = this.getPosition(d[this.yKey], this.yScale.getScale());
+        this.mouseOver({
           data: d,
           position: {
             x,
@@ -321,17 +296,27 @@ D extends Record<string, unknown>,
             stroke: circle.attr('stroke') || undefined,
             strokeWidth: circle.attr('stroke-width') || undefined,
             strokeOpacity: circle.attr('stroke-opacity'),
-            xKey: String(vis.xKey),
-            yKey: String(vis.yKey),
+            xKey: String(this.xKey),
+            yKey: String(this.yKey),
           },
         });
       })
-      .on('mouseout', function () {
-        select(this)
+      .on('mouseout', (e) => {
+        select(e.currentTarget)
           .classed(D3Classes.events.hovered, false);
 
-        vis.mouseOut();
+        this.mouseOut();
       });
+  }
+
+  private enter() {
+    const circlesInit = this.circleStart(
+      this.circles
+        .enter()
+        .append('circle'),
+    );
+
+    this.setCircleEvents(circlesInit);
 
     return this.circleEnd(
       circlesInit
@@ -355,27 +340,40 @@ D extends Record<string, unknown>,
     ...transitions: Transition<any, any, any, any>[]
   ) {
     D3OnTransitionEnd(...transitions)({
-      onResolve: () => this.update(),
-      onReject: () => this.update(),
-      onEmpty: () => this.update(),
+      onResolve: () => this.update().new(),
+      onReject: () => this.update().new(),
+      onEmpty: () => this.update().new(),
     });
   }
 
-  update(transition?: number) {
-    // this.circleEnd(
-    //   this.chart.chart
-    //     .selectAll<SVGCircleElement, D3DataCatgAndLinear<D>>(
-    //       `.${D3Classes.chartElements.circle.circle}`,
-    //     )
-    //     .transition()
-    //     .duration(transition ?? this.transitionMs),
-    // );
+  private getUpdateSelection(all?: boolean) {
+    return all
+      ? this.chart.chart
+        .selectAll<SVGCircleElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.circle.circle}`)
+      : this.circles;
+  }
 
-    this.circleEnd(
-      this.circles
-        .transition()
-        .duration(transition ?? this.transitionMs),
-    );
+  update(transition?: number) {
+    return {
+      new: () => {
+        const selection = this.getUpdateSelection();
+        this.circleEnd(
+          selection
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+        this.setCircleEvents(selection);
+      },
+      all: () => {
+        const selection = this.getUpdateSelection(true);
+        this.circleEnd(
+          selection
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+        this.setCircleEvents(selection);
+      },
+    };
   }
 }
 

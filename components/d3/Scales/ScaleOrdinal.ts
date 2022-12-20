@@ -30,7 +30,7 @@ D extends Record<string, unknown>,
         data,
         dataKey,
         scheme,
-        domain,
+        domain: domain as string[],
       });
       addScale(scale);
     }
@@ -45,7 +45,7 @@ D extends Record<string, unknown>,
         data,
         dataKey,
         scheme,
-        domain,
+        domain: domain as string[],
       });
     }
   }, [
@@ -81,4 +81,5 @@ D extends Record<string, unknown>,
   return true;
 });
 
+(ReactD3ScaleOrdinal as React.FC).displayName = 'ReactD3ScaleOrdinal';
 export default ReactD3ScaleOrdinal;

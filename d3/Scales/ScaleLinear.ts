@@ -118,24 +118,32 @@ D extends Record<string, unknown>,
     this.scale = scaleLinear()
       .domain(this.getDomain({ ...params, dataKey: this.dataKey }))
       .range(this.range);
+
+    const zoomScale = this.getZoomScale(this.zoomState);
+    if (zoomScale) {
+      this.zoomScale = zoomScale
+        .domain(this.getDomain({ ...params, dataKey: this.dataKey }));
+    }
     this.axis.updateAxis({ scale: this.getScale(), chart: params.chart, label: params.label });
   }
 
-  zoomRescale(e: any) {
+  private getZoomScale(transform: any) {
+    if (!transform) return;
     if (this.axis.type === 'bottom' || this.axis.type === 'top') {
-      this.zoomScale = e.transform.rescaleX(this.scale);
-    } else if (this.axis.type === 'left' || this.axis.type === 'right') {
-      this.zoomScale = e.transform.rescaleY(this.scale);
-    } else {
-      this.zoomScale = null;
+      return transform.rescaleX(this.scale);
     }
+    if (this.axis.type === 'left' || this.axis.type === 'right') {
+      return transform.rescaleY(this.scale);
+    }
+  }
 
+  zoomRescale(e: any) {
     if (this.zoomState && !D3IsZoomed(e)) {
       this.zoomState = null;
-      this.zoomScale = null;
     } else {
       this.zoomState = e.transform;
     }
+    this.zoomScale = this.getZoomScale(this.zoomState);
 
     this.axis.updateAxis({
       scale: this.getScale(),

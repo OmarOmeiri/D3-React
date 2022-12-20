@@ -90,7 +90,6 @@ D extends Record<string, unknown>,
       .range(this.range)
       .paddingInner(this.padding?.inner || DEFAULT_PADDING.inner)
       .paddingOuter(this.padding?.outer || DEFAULT_PADDING.outer);
-
     this.axis = new D3Axis({
       id: params.id,
       chart: params.chart,
@@ -139,6 +138,17 @@ D extends Record<string, unknown>,
       .paddingInner(this.padding?.inner || DEFAULT_PADDING.inner)
       .paddingOuter(this.padding?.outer || DEFAULT_PADDING.outer);
 
+    const zoomRange = this.getZoomRange(this.zoomState);
+    if (zoomRange) {
+      this.zoomScale = scaleBand()
+        .domain(this.getDomain({ chart: this.chart, type: this.axis.type, dataKey: this.dataKey }))
+        .range(zoomRange)
+        .paddingInner(this.padding?.inner || DEFAULT_PADDING.inner)
+        .paddingOuter(this.padding?.outer || DEFAULT_PADDING.outer);
+    } else {
+      this.zoomScale = null;
+    }
+
     this.axis.updateAxis({
       scale: this.getScale(),
       chart: params.chart,
@@ -163,24 +173,29 @@ D extends Record<string, unknown>,
     return domain[Math.max(0, Math.min(index, domain.length - 1))];
   }
 
-  zoomRescale(e: any) {
+  private getZoomRange(transform: any) {
+    if (!transform) return;
     let newRange: [number, number] | undefined;
     if (this.axis.type === 'bottom' || this.axis.type === 'top') {
       newRange = D3GetScaleRange(this.axis.type, this.chart.dims)
-        .map((d) => e.transform.applyX(d)) as [number, number];
+        .map((d) => transform.applyX(d)) as [number, number];
     }
 
     if (this.axis.type === 'left' || this.axis.type === 'right') {
       newRange = D3GetScaleRange(this.axis.type, this.chart.dims)
-        .map((d) => e.transform.applyY(d)) as [number, number];
+        .map((d) => transform.applyY(d)) as [number, number];
     }
 
+    return newRange;
+  }
+
+  zoomRescale(e: any) {
     if (this.zoomState && !D3IsZoomed(e)) {
       this.zoomState = null;
-      this.zoomScale = null;
     } else {
       this.zoomState = e.transform;
     }
+    const newRange = this.getZoomRange(this.zoomState);
 
     if (newRange) {
       this.zoomScale = scaleBand()

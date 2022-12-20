@@ -3,6 +3,7 @@ import {
   useRef,
 } from 'react';
 import Violin, { ID3Violin } from '../../../d3/chartElements/Violin/Violin';
+import { typedMemo } from '../../../utils/react/typedMemo';
 import {
   D3ContextGetScales,
   useD3Context,
@@ -46,7 +47,7 @@ const getViolinScales = (
   };
 };
 
-const ReactD3Violin = <
+const ReactD3Violin = typedMemo(<
 D extends Record<string, unknown>,
 >({
     data,
@@ -115,6 +116,24 @@ D extends Record<string, unknown>,
   ]);
 
   return null;
-};
+}, (prev, next) => {
+  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof ReactD3ViolinProps<any>)[];
+  for (const key of keys) {
+    if (key === 'formatCrosshair') {
+      if (
+        prev?.formatCrosshair?.x?.toString() !== next?.formatCrosshair?.x?.toString()
+        || prev?.formatCrosshair?.y?.toString() !== next?.formatCrosshair?.y?.toString()
+      ) return false;
+      continue;
+    }
 
+    if (prev[key] !== next[key]) {
+      return false;
+    }
+  }
+
+  return true;
+});
+
+(ReactD3Violin as React.FC).displayName = 'ReactD3Violin';
 export default ReactD3Violin;

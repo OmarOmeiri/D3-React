@@ -25,7 +25,7 @@
     "noEmit": true,
     "outDir": "build",
     "jsx": "preserve",
-    "resolveJsonModule": true,
+    "resolveJsonModule": false,
     "baseUrl": ".",
     "sourceMap": true,
     "rootDir": "./",

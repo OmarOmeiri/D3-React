@@ -69,7 +69,7 @@ D extends Record<string, unknown>,
   private scale: ScaleTime<number, number, never>;
   private zoomScale: ScaleTime<number, number, never> | null = null;
   private zoomState: {k: number, x: number, y: number} | null = null;
-  public key?: D3DateKey<D>[];
+  public dataKey?: D3DateKey<D>[];
   private chart: D3Chart;
   private data?: D3DataTime<D>[];
   public id: string;
@@ -81,13 +81,13 @@ D extends Record<string, unknown>,
     this.id = params.id;
     this.chart = params.chart;
     this.data = params.data;
-    this.key = params.dataKey
+    this.dataKey = params.dataKey
       ? [params.dataKey].flat() as D3DateKey<D>[]
       : undefined;
     this.domain = params.domain;
     this.range = D3GetScaleRange(params.type, params.chart.dims);
     this.scale = scaleTime()
-      .domain((this.getDomain({ ...params, dataKey: this.key })))
+      .domain((this.getDomain({ ...params, dataKey: this.dataKey })))
       .range(this.range);
     this.axis = new D3Axis({
       id: params.id,
@@ -162,7 +162,7 @@ D extends Record<string, unknown>,
 
   private getDomain({
     data = this.data,
-    dataKey: key = this.key,
+    dataKey = this.dataKey,
     domain = this.domain,
   }: IUpdateScale<D> & {dataKey?: D3DateKey<D>[]}): [Date, Date] {
     if (
@@ -171,10 +171,10 @@ D extends Record<string, unknown>,
     ) {
       return domain;
     }
-    if (data && data.length && key) {
+    if (data && data.length && dataKey) {
       const d = data.reduce((vals, d) => ([
         ...vals,
-        ...key.reduce((timestamps, k) => {
+        ...dataKey.reduce((timestamps, k) => {
           const potentialDate = d[k] as unknown;
           if (isDate(potentialDate)) return [...timestamps, potentialDate.getTime()];
           return timestamps;
@@ -199,33 +199,41 @@ D extends Record<string, unknown>,
 
   updateScale(params: IUpdateScale<D>) {
     this.range = params.range || D3GetScaleRange(params.type, params.chart.dims);
-    if (params.dataKey) this.key = [params.dataKey].flat() as D3DateKey<D>[];
+    if (params.dataKey) this.dataKey = [params.dataKey].flat() as D3DateKey<D>[];
     this.scale = scaleTime()
-      .domain(this.getDomain({ ...params, dataKey: this.key }))
+      .domain(this.getDomain({ ...params, dataKey: this.dataKey }))
       .range(this.range);
+
+    const zoomScale = this.getZoomScale(this.zoomState);
+    if (zoomScale) {
+      this.zoomScale = zoomScale
+        .domain(this.getDomain({ ...params, dataKey: this.dataKey }));
+    }
+
     this.axis.updateAxis({
-      scale: this.scale,
+      scale: this.getScale(),
       chart: params.chart,
       label: params.label,
     });
   }
 
-  zoomRescale(e: any) {
+  private getZoomScale(transform: any) {
+    if (!transform) return;
     if (this.axis.type === 'bottom' || this.axis.type === 'top') {
-      this.zoomScale = e.transform.rescaleX(this.scale);
-      // console.log(this.scale.range().map((r) => this.invert((r - x) / k)));
-    } else if (this.axis.type === 'left' || this.axis.type === 'right') {
-      this.zoomScale = e.transform.rescaleY(this.scale);
-    } else {
-      this.zoomScale = null;
+      return transform.rescaleX(this.scale);
     }
+    if (this.axis.type === 'left' || this.axis.type === 'right') {
+      return transform.rescaleY(this.scale);
+    }
+  }
 
+  zoomRescale(e: any) {
     if (this.zoomState && !D3IsZoomed(e)) {
       this.zoomState = null;
-      this.zoomScale = null;
     } else {
       this.zoomState = e.transform;
     }
+    this.zoomScale = this.getZoomScale(this.zoomState);
 
     this.axis.updateAxis({
       scale: this.zoomScale || this.scale,

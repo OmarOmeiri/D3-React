@@ -3,7 +3,6 @@
 import { isEqual } from 'lodash';
 import React, { useEffect } from 'react';
 import { D3Margins } from '../../../d3/Dimensions/types';
-import useRenderTrace from '../../../hooks/useRenderTrace';
 import { typedMemo } from '../../../utils/react/typedMemo';
 import {
   D3ContextProvider,
@@ -72,4 +71,5 @@ const ReactD3Chart = typedMemo(withD3Context(({
   return true;
 });
 
+(ReactD3Chart as React.FC).displayName = 'D3Chart';
 export default ReactD3Chart;

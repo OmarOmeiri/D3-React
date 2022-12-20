@@ -1,10 +1,10 @@
 import { D3Margins } from './types';
 
 const DEFAULT_MARGINS: D3Margins = {
-  top: 20,
-  left: 30,
-  bottom: 20,
-  right: 30,
+  top: 30,
+  left: 40,
+  bottom: 40,
+  right: 40,
 };
 
 const INIT_RECT: DOMRectReadOnly = {

@@ -142,8 +142,8 @@ D extends Record<string, unknown>,
   for (const key of keys) {
     if (key === 'formatCrosshair') {
       if (
-        prev?.formatCrosshair?.x !== next?.formatCrosshair?.x
-        || prev?.formatCrosshair?.y !== next?.formatCrosshair?.y
+        prev?.formatCrosshair?.x?.toString() !== next?.formatCrosshair?.x?.toString()
+        || prev?.formatCrosshair?.y?.toString() !== next?.formatCrosshair?.y?.toString()
       ) return false;
       continue;
     }
@@ -156,4 +156,5 @@ D extends Record<string, unknown>,
   return true;
 });
 
+(ReactD3Line as React.FC).displayName = 'ReactD3Line';
 export default ReactD3Line;

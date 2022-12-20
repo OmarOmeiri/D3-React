@@ -37,4 +37,5 @@ const ReactD3Title = ({ title }: {title: string}) => {
   return null;
 };
 
+(ReactD3Title as React.FC).displayName = 'ReactD3Title';
 export default ReactD3Title;

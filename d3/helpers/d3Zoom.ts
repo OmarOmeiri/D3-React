@@ -49,6 +49,7 @@ export const D3Zoom = ({
       D3ZoomHelper(e, xScale);
       D3ZoomHelper(e, yScale);
       onZoom(e);
+      chart.setZoom(e.transform);
     });
 
   chart.svg

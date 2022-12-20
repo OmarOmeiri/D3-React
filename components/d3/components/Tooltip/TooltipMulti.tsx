@@ -128,4 +128,5 @@ const ReactD3TooltipMulti = <D extends Record<string, unknown>>({
   );
 };
 
+(ReactD3TooltipMulti as React.FC).displayName = 'ReactD3TooltipMulti';
 export default ReactD3TooltipMulti;

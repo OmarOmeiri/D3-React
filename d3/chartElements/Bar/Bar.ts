@@ -200,7 +200,7 @@ D extends Record<string, unknown>,
         chart: this.chart,
         xScale: this.xScale,
         yScale: this.yScale,
-        onZoom: () => { this.update(0); },
+        onZoom: () => { this.update(0).all(); },
       });
     }
   }
@@ -250,44 +250,53 @@ D extends Record<string, unknown>,
     this.onTransitionEnd(entering, exiting);
   }
 
-  private enter() {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const vis = this;
-    const barsInit = this.barsStart(
-      this.bars
-        .enter()
-        .append('rect'),
-    );
-    barsInit
-      .on('mouseover', function (_, d) {
-        const bar = select(this);
+  private setBarEvents(bars: BarsSelection<D>) {
+    bars
+      .on('mouseover', (e, d) => {
+        const bar = select(e.currentTarget);
         bar
           .classed(D3Classes.events.hovered, true);
-        const x = vis.getPosition(d[vis.xKey], vis.xScale.getScale());
-        const y = vis.getPosition(d[vis.yKey], vis.yScale.getScale());
-        vis.mouseOver({
+        const x = Math.max(
+          Math.min(
+            this.getPosition(d[this.xKey], this.xScale.getScale()),
+            this.chart.dims.innerDims.width,
+          ),
+          0,
+        );
+        const y = Math.max(this.getPosition(d[this.yKey], this.yScale.getScale()), 0);
+        this.mouseOver({
           data: d,
           position: {
             x,
             y,
           },
           attrs: {
-            name: String(vis.yKey),
+            name: String(this.yKey),
             fill: bar.attr('fill') || undefined,
             fillOpacity: bar.attr('fill-opacity') || undefined,
             stroke: bar.attr('stroke') || undefined,
             strokeWidth: bar.attr('stroke-width') || undefined,
             strokeOpacity: bar.attr('stroke-opacity'),
-            xKey: String(vis.xKey),
-            yKey: String(vis.yKey),
+            xKey: String(this.xKey),
+            yKey: String(this.yKey),
           },
         });
       })
-      .on('mouseout', function () {
-        select(this)
+      .on('mouseout', (e) => {
+        select(e.currentTarget)
           .classed(D3Classes.events.hovered, false);
-        vis.mouseOut();
+        this.mouseOut();
       });
+  }
+
+  private enter() {
+    const barsInit = this.barsStart(
+      this.bars
+        .enter()
+        .append('rect'),
+    );
+
+    this.setBarEvents(barsInit);
 
     const entering = this.barsEnd(
       barsInit
@@ -312,10 +321,17 @@ D extends Record<string, unknown>,
     ...transitions: Transition<any, any, any, any>[]
   ) {
     D3OnTransitionEnd(...transitions)({
-      onResolve: () => this.update(),
-      onReject: () => this.update(),
-      onEmpty: () => this.update(),
+      onResolve: () => this.update().new(),
+      onReject: () => this.update().new(),
+      onEmpty: () => this.update().new(),
     });
+  }
+
+  private getUpdateSelection(all?: boolean) {
+    return all
+      ? this.parentGroup
+        .selectAll<SVGRectElement, D3DataCatgAndLinear<D>>(`.${D3Classes.chartElements.bar.bar}`)
+      : this.bars;
   }
 
   update(transition?: number) {
@@ -324,6 +340,28 @@ D extends Record<string, unknown>,
         .transition()
         .duration(transition ?? this.transitionMs),
     );
+
+    return {
+      all: () => {
+        const selection = this.getUpdateSelection(true);
+        this.barsEnd(
+          selection
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+        this.setBarEvents(selection);
+      },
+      new: () => {
+        const selection = this.getUpdateSelection();
+        this.barsEnd(
+          selection
+            .transition()
+            .duration(transition ?? this.transitionMs),
+        );
+
+        this.setBarEvents(selection);
+      },
+    };
   }
 }
 

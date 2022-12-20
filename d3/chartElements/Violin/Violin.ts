@@ -80,6 +80,10 @@ D extends Record<string, unknown>,
   transitionMs?: number,
   disableZoom?: boolean,
   crosshair?: boolean
+  formatCrosshair?: {
+    x?: (val: string | number | Date) => string
+    y?: (val: string | number | Date) => string
+  }
 }
 
 type ViolinSelection<D extends Record<string, any>> = Selection<SVGPathElement, BinnedData<D>[number], SVGGElement, BinnedData<D>[number]>;
@@ -104,6 +108,10 @@ D extends Record<string, unknown>,
   private disableZoom: boolean;
   private crosshair: boolean;
   private binsMax!: number;
+  private formatCrosshair?: {
+    x?: (val: string | number | Date) => string
+    y?: (val: string | number | Date) => string
+  };
 
   constructor({
     chart,
@@ -114,6 +122,7 @@ D extends Record<string, unknown>,
     transitionMs = 150,
     disableZoom = false,
     crosshair = true,
+    formatCrosshair,
     filter,
   }: ID3Violin<D>) {
     this.chart = chart;
@@ -126,6 +135,7 @@ D extends Record<string, unknown>,
     this.crosshair = crosshair;
     this.filter = filter;
     this.mouse = new D3Mouse(this.chart);
+    this.formatCrosshair = formatCrosshair;
 
     this.parentGroup = d3AppendIfNotExists(
       this.chart.chart
@@ -153,8 +163,8 @@ D extends Record<string, unknown>,
         mouseCallback(xScaled, yScaled);
 
         this.mouse.setCrosshairText(
-          D3FormatCrosshair(xVal),
-          D3FormatCrosshair(yVal),
+          this.formatCrosshair?.x ? this.formatCrosshair.x(xVal as any) : D3FormatCrosshair(xVal),
+          this.formatCrosshair?.y ? this.formatCrosshair.y(yVal as any) : D3FormatCrosshair(yVal),
         );
       },
     });
@@ -163,7 +173,7 @@ D extends Record<string, unknown>,
         chart: this.chart,
         xScale: this.xScale,
         yScale: this.yScale,
-        onZoom: () => { this.update(0); },
+        onZoom: () => { this.update(0).all(); },
       });
     }
   }
@@ -347,26 +357,28 @@ D extends Record<string, unknown>,
 
     return {
       new: () => {
+        const selection = this.getUpdateSelection();
         this.pathsEnd(
-          this.getUpdateSelection()
+          selection
             .paths
             .transition()
             .duration(transition ?? this.transitionMs),
         );
-        this.getUpdateSelection()
+        selection
           .groups
           .transition()
           .duration(transition ?? this.transitionMs)
           .attr('transform', (d) => (`translate(${this.xScale.getScale()(d.attrs.name)} ,0)`));
       },
       all: () => {
+        const selection = this.getUpdateSelection(true);
         this.pathsEnd(
-          this.getUpdateSelection(true)
+          selection
             .paths
             .transition()
             .duration(transition ?? this.transitionMs),
         );
-        this.getUpdateSelection(true)
+        selection
           .groups
           .transition()
           .duration(transition ?? this.transitionMs)

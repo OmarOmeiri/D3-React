@@ -9,6 +9,12 @@ import {
   getTooltipColor,
 } from './helpers/tooltip';
 
+const gridStyles: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'max-content max-content',
+  textAlign: 'start',
+};
+
 const isMulti = <D extends Record<string, unknown>>(
   data: ID3TooltipDataMulti<D> | ID3TooltipDataSingle<D>,
 ): data is ID3TooltipDataMulti<D> => {
@@ -64,10 +70,7 @@ const getMultiValueTable = <D extends Record<string, unknown>>({
         {formattedLabel}
       </div>
       <div className={classes.TooltipContent}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'max-content max-content',
-        }}>
+        <div style={gridStyles}>
           {
             Object.entries(dt)
               .reduce((vals, [key, value]) => {
@@ -130,10 +133,7 @@ const getSingleValueTable = <D extends Record<string, unknown>>({
           : null
       }
       <div className={classes.TooltipContent}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'max-content max-content',
-        }}>
+        <div style={gridStyles}>
           {
             Object.entries(dt)
               .reduce((vals, [key, value]) => {
@@ -193,5 +193,6 @@ function TooltipTabledKeyValuePair<D extends Record<string, unknown>>({
   });
 }
 
+(TooltipTabledKeyValuePair as React.FC).displayName = 'TooltipTabledKeyValuePair';
 export default TooltipTabledKeyValuePair;
 

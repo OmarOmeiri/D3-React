@@ -2,10 +2,12 @@ import { ScaleOrdinal } from 'd3';
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react';
-import Dot from '@icons/dot.svg';
-import LineDot from '@icons/line-dot.svg';
+import Dot from '@icons/charts/dot.svg';
+import LineDot from '@icons/charts/line-dot.svg';
+import Square from '@icons/charts/square.svg';
 import D3ScaleOrdinal from '../../../d3/Scales/ScaleOrdinal';
 import { useD3Context } from '../context/D3Context';
 import classes from './css/Legend.module.css';
@@ -17,64 +19,76 @@ export type D3LegendItem = {
   color?: string
 };
 
-type Props = {
+type Props<T extends D3LegendItem> = {
   colorScaleId: string
-  items: D3LegendItem[]
-  type: 'line' | 'dot',
-  style?: React.CSSProperties
-  onClick: (item: D3LegendItem) => void
+  items: T[]
+  type: 'line' | 'dot' | 'square',
+  onClick: (item: T) => void
 } | {
   colorScaleId?: undefined
-  items: Required<D3LegendItem>[]
-  type: 'line' | 'dot',
-  style?: React.CSSProperties
-  onClick: (item: D3LegendItem) => void
+  items: Required<T>[]
+  type: 'line' | 'dot' | 'square',
+  onClick: (item: T) => void
 }
 
-const Icon = ({ type }: {type: Props['type']}) => {
+const style = {
+  margin: '0 1em',
+};
+
+const Icon = <T extends D3LegendItem>({ type }: {type: Props<T>['type']}) => {
   switch (type) {
     case 'dot':
       return <Dot/>;
     case 'line':
       return <LineDot/>;
+    case 'square':
+      return <Square/>;
     default:
       return null;
   }
 };
 
-const getLegendItem = (
-  items: D3LegendItem[],
-  type: Props['type'],
-  onClick: Props['onClick'],
+const getLegendItem = <T extends D3LegendItem>(
+  items: T[],
+  type: Props<T>['type'],
+  onClick: Props<T>['onClick'],
   getColor: (item: D3LegendItem) => string,
 ) => (
-  items.map((i) => (
-    <button
+    items.map((i) => (
+      <button
       className={`${classes.LegendItem} ${i.active ? classes.LegendItemActive : ''}`}
       key={i.id}
       onClick={() => onClick(i)}
     >
-      <span className={classes.LegendDot} style={{ color: getColor(i) || 'inherit' }}>
-        <Icon type={type}/>
-      </span>
-      <span>{i.name}</span>
-    </button>
-  ))
-);
+        <span className={classes.LegendDot} style={{ color: getColor(i) || 'inherit' }}>
+          <Icon type={type}/>
+        </span>
+        <span>{i.name}</span>
+      </button>
+    ))
+  );
 
-const ReactD3Legend = ({
+const ReactD3Legend = <T extends D3LegendItem>({
   colorScaleId,
   type,
   items,
-  style,
   onClick,
-}: Props) => {
+}: Props<T>) => {
   const [colorScale, setColorScale] = useState<ScaleOrdinal<string, unknown, never> | null>(null);
+  const legend = useRef<HTMLDivElement | null>(null);
 
   const {
     getScale,
     scales,
+    chart,
+    dims,
   } = useD3Context();
+
+  useEffect(() => {
+    if (dims && legend.current && chart) {
+      legend.current.style.marginTop = `${chart.dims.margin.top}px`;
+    }
+  }, [dims, chart]);
 
   useEffect(() => {
     if (scales.length) {
@@ -99,7 +113,7 @@ const ReactD3Legend = ({
   }, [colorScale]);
 
   return (
-    <div style={style}>
+    <div style={style} ref={legend}>
       {
         getLegendItem(
           items
@@ -124,4 +138,5 @@ const ReactD3Legend = ({
   );
 };
 
+(ReactD3Legend as React.FC).displayName = 'ReactD3Legend';
 export default ReactD3Legend;

@@ -41,6 +41,22 @@ D extends Record<string, unknown>,
 | D3ScaleTime<D>
 | D3ScaleColorSequential<D>
 
+export type D3AxedScales<
+D extends Record<string, unknown>,
+> =
+| D3ScaleBand<D>
+| D3ScaleLinear<D>
+| D3ScaleLog<D>
+| D3ScaleTime<D>
+
+export type TD3AxedScales<
+D extends Record<string, unknown>,
+> =
+| D3ScaleBand<D>['scale']
+| D3ScaleLinear<D>['scale']
+| D3ScaleLog<D>['scale']
+| D3ScaleTime<D>['scale']
+
 export interface IScale<
 D extends Record<string, unknown>,
 > {

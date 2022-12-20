@@ -102,6 +102,11 @@ D extends Record<string, unknown>,
       continue;
     }
 
+    if (key === 'tickFormat') {
+      if (prev.tickFormat?.toString() !== next.tickFormat?.toString()) return false;
+      continue;
+    }
+
     if (prev[key] !== next[key]) {
       return false;
     }
@@ -110,4 +115,5 @@ D extends Record<string, unknown>,
   return true;
 });
 
+(ReactD3ScaleTime as React.FC).displayName = 'ReactD3ScaleTime';
 export default ReactD3ScaleTime;

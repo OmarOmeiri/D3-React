@@ -88,16 +88,16 @@ class D3Mouse {
   private mouseMove(x: number, y: number) {
     this.chart.chart
       .select(`.${D3Classes.events.mouseVerticalLine}`)
-      .attr('x1', x)
+      .attr('x1', Math.max(Math.min(x, this.chart.dims.innerDims.width), 0))
       .attr('y1', 0)
-      .attr('x2', x)
+      .attr('x2', Math.max(Math.min(x, this.chart.dims.innerDims.width), 0))
       .attr('y2', this.chart.dims.innerDims.height);
 
     this.chart.chart
       .select(`.${D3Classes.events.crossHairVertical}`)
-      .attr('x1', x)
+      .attr('x1', Math.max(Math.min(x, this.chart.dims.innerDims.width), 0))
       .attr('y1', 0)
-      .attr('x2', x)
+      .attr('x2', Math.max(Math.min(x, this.chart.dims.innerDims.width), 0))
       .attr('y2', this.chart.dims.innerDims.height);
 
     this.chart.chart
@@ -112,7 +112,7 @@ class D3Mouse {
     this.chart.chart
       .select(`.${D3Classes.axis.tooltip.foreignObjectX}`)
       .attr('transform', `translate(${
-        x - (this.getAxisTooltipSize('x').width / 2)
+        Math.max(Math.min(x - (this.getAxisTooltipSize('x').width / 2), this.chart.dims.innerDims.width), 0)
       }, ${
         this.chart.dims.innerDims.height + 6
       })`);

@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
 } from 'react';
 import { D3Scales } from '../../../d3/Scales/types';
 import { PortalByRef } from '../../../hoc/PortalByRef';
@@ -36,6 +37,7 @@ type ChartOverlayPositionScaled = number | Date | string;
 
 interface ID3ChartOverlay {
   children: React.ReactElement<any>
+  overflow?: boolean
 }
 
 type TD3ChartOverlayElementXYScaled = {
@@ -101,8 +103,8 @@ const clampPosition = (
   type: 'left' | 'top',
 ) => (
   type === 'left'
-    ? `${Math.min(Math.max(value, 0), (dims.width - node.offsetWidth - 5))}px`
-    : `${Math.min(Math.max(value, 0), (dims.height - node.offsetHeight))}px`
+    ? Math.min(Math.max(value, 0), (dims.width - node.offsetWidth - 5))
+    : Math.min(Math.max(value, 0), (dims.height - node.offsetHeight))
 );
 
 const getScaledValue = ({
@@ -280,9 +282,12 @@ const getElementPosition = ({
     })
     : undefined;
 
+  const top = getPositionTop({ y: position.y, node, chart, scale: yScale });
+  const left = getPositionLeft({ x: position.x, node, chart, scale: xScale });
+
   return {
-    top: getPositionTop({ y: position.y, node, chart, scale: yScale }),
-    left: getPositionLeft({ x: position.x, node, chart, scale: xScale }),
+    top: `${top}px`,
+    left: `${left}px`,
     opacity: '1',
   };
 };
@@ -298,6 +303,7 @@ export function D3ChartOverlayElement({
   children,
 }: TD3ChartOverlayElement) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const [updt, setUpdt] = useState(false);
   const { dims, getScale, chart } = useD3Context();
 
   const refCb = useCallback((node: HTMLDivElement | null) => {
@@ -353,7 +359,18 @@ export function D3ChartOverlayElement({
     getScale,
     yScaleId,
     xScaleId,
+    updt,
   ]);
+
+  const onZoom = useCallback(() => {
+    setUpdt((s) => !s);
+  }, []);
+
+  useEffect(() => {
+    if (chart) {
+      chart.zoomSubscribe(onZoom);
+    }
+  }, [chart, onZoom]);
 
   if (!dims) return null;
 
@@ -366,13 +383,28 @@ export function D3ChartOverlayElement({
   );
 }
 
-export default function D3ChartOverlay({
+function D3ChartOverlay({
   children,
+  overflow = false,
 }: ID3ChartOverlay) {
-  const { chartOverlayRef } = useD3Context();
+  const { chartOverlayRef, chart, dims } = useD3Context();
   useEffect(() => {
     validateChildProps(children, ['position']);
   }, [children]);
+
+  useEffect(() => {
+    if (chartOverlayRef.current && chart && !overflow) {
+      chartOverlayRef.current.style.clipPath = `inset(${
+        chart.dims.margin.top
+      }px ${
+        chart.dims.margin.right + 5
+      }px ${
+        chart.dims.margin.bottom
+      }px ${
+        chart.dims.margin.left
+      }px)`;
+    }
+  }, [chartOverlayRef, chart, dims, overflow]);
 
   if (!chartOverlayRef.current) return null;
 
@@ -382,3 +414,6 @@ export default function D3ChartOverlay({
     </PortalByRef>
   );
 }
+
+(D3ChartOverlay as React.FC).displayName = 'D3ChartOverlay';
+export default D3ChartOverlay;

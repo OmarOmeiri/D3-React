@@ -3,27 +3,29 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import Bar, { ID3Bar } from '../../../d3/chartElements/Bar/Bar';
-import D3ScaleColorSequential from '../../../d3/Scales/ScaleColorSequential';
-import D3ScaleOrdinal from '../../../d3/Scales/ScaleOrdinal';
+import GroupedBar, { ID3GroupedBar } from '../../../d3/chartElements/GroupedBar/GroupedBar';
+import D3ScaleBand from '../../../d3/Scales/ScaleBand';
 import { typedMemo } from '../../../utils/react/typedMemo';
 import {
   D3ContextGetScales,
   useD3Context,
 } from '../context/D3Context';
 
-import type { D3ScaleLinear } from '../../../d3/Scales';
-import type D3ScaleBand from '../../../d3/Scales/ScaleBand';
+import type D3ScaleOrdinal from '../../../d3/Scales/ScaleOrdinal';
+import type { D3AxedScales } from '../../../d3/Scales/types';
 
-type ReactBarProps<
+type ReactGBarProps<
 D extends Record<string, unknown>,
-> = Expand<Omit<ID3Bar<D>, 'xScale' | 'yScale' | 'chart' | 'colorScale'> & {
+> = Expand<Omit<
+ID3GroupedBar<D>
+, 'xScale' | 'colorScale' | 'yScale' | 'chart'
+> & {
   yAxisId?: string,
-  xAxisId?: string
+  xAxisId?: string,
   colorScaleId?: string,
 }>
 
-const getBarScales = (
+const getGBarScales = (
   {
     yAxisId,
     xAxisId,
@@ -38,16 +40,16 @@ const getBarScales = (
   const yScale = getScale({
     id: yAxisId,
     type: 'y',
-  }) as D3ScaleLinear<any>;
+  }) as unknown as D3AxedScales<any>;
   const xScale = getScale({
     id: xAxisId,
     type: 'x',
-  }) as D3ScaleBand<any>;
+  }) as unknown as D3ScaleBand<any>;
 
   const colorScale = getScale({
     id: colorScaleId,
     mightNotExist: true,
-  })as D3ScaleOrdinal<any> | D3ScaleColorSequential<any>;
+  })as D3ScaleOrdinal<any>;
 
   return {
     xScale,
@@ -56,31 +58,32 @@ const getBarScales = (
   };
 };
 
-const ReactD3Bar = typedMemo(<
+const ReactD3GroupedBar = typedMemo(<
 D extends Record<string, unknown>,
 >({
     data,
-    xKey,
-    yKey,
     colorKey,
-    dataJoinKey,
-    crosshair,
-    disableZoom,
-    transitionMs,
-    formatCrosshair,
     fill,
     fillOpacity,
     stroke,
     strokeWidth,
-    strokeOpacity,
-    mouseOver,
-    mouseOut,
+    transitionMs,
     yAxisId,
     xAxisId,
     colorScaleId,
-  }: ReactBarProps<D>,
-  ) => {
-  const bar = useRef<Bar<D> | null>(null);
+    groupPadding,
+    strokeOpacity,
+    series,
+    groupKey,
+    disableZoom,
+    crosshair,
+    formatCrosshair,
+    filter,
+    mouseOut,
+    mouseMove,
+    mouseOver,
+  }: ReactGBarProps<D>) => {
+  const gBar = useRef<GroupedBar<D> | null>(null);
   const {
     chart,
     dims,
@@ -95,63 +98,67 @@ D extends Record<string, unknown>,
         yScale,
         xScale,
         colorScale,
-      } = getBarScales({
+      } = getGBarScales({
         xAxisId,
         yAxisId,
         colorScaleId,
       }, getScale);
 
-      bar.current = new Bar({
+      gBar.current = new GroupedBar({
         chart,
         data,
-        xKey,
-        yKey,
         xScale,
         yScale,
         colorScale,
         colorKey,
-        dataJoinKey,
-        crosshair,
-        disableZoom,
-        transitionMs,
-        formatCrosshair,
+        groupPadding,
         fill,
         fillOpacity,
         stroke,
         strokeWidth,
+        transitionMs,
         strokeOpacity,
-        mouseOver,
+        series,
+        groupKey,
+        disableZoom,
+        crosshair,
+        formatCrosshair,
+        filter,
         mouseOut,
+        mouseMove,
+        mouseOver,
       });
     }
   }, [
     chart,
     data,
-    xKey,
-    yKey,
-    scales,
     colorKey,
-    dataJoinKey,
-    crosshair,
-    disableZoom,
-    transitionMs,
-    formatCrosshair,
+    groupPadding,
     fill,
     fillOpacity,
     stroke,
     strokeWidth,
+    transitionMs,
     strokeOpacity,
-    mouseOver,
-    mouseOut,
-    yAxisId,
+    series,
+    groupKey,
+    disableZoom,
+    crosshair,
+    formatCrosshair,
+    scales,
     xAxisId,
+    yAxisId,
     colorScaleId,
     getScale,
+    filter,
+    mouseOut,
+    mouseMove,
+    mouseOver,
   ]);
 
   useEffect(() => {
-    if (chart && bar.current && scales.length && dims) {
-      bar.current.update().all();
+    if (chart && scales.length && gBar.current && dims) {
+      gBar.current.update().all();
     }
   }, [
     chart,
@@ -162,21 +169,8 @@ D extends Record<string, unknown>,
 
   return null;
 }, (prev, next) => {
-  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof ReactBarProps<any>)[];
+  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])) as (keyof ReactGBarProps<any>)[];
   for (const key of keys) {
-    if (key === 'dataJoinKey') {
-      if (
-        typeof prev.dataJoinKey === 'function'
-        && typeof next.dataJoinKey === 'function'
-      ) {
-        if (prev.dataJoinKey.toString() !== next.dataJoinKey.toString()) return false;
-        continue;
-      }
-
-      if (!isEqual(prev.dataJoinKey, next.dataJoinKey)) return false;
-      continue;
-    }
-
     if (key === 'formatCrosshair') {
       if (
         prev?.formatCrosshair?.x?.toString() !== next?.formatCrosshair?.x?.toString()
@@ -193,5 +187,5 @@ D extends Record<string, unknown>,
   return true;
 });
 
-(ReactD3Bar as React.FC).displayName = 'ReactD3Bar';
-export default ReactD3Bar;
+(ReactD3GroupedBar as React.FC).displayName = 'ReactD3GroupedBar';
+export default ReactD3GroupedBar;

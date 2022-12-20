@@ -135,4 +135,5 @@ const ReactD3TooltipSingle = <D extends Record<string, unknown>>({
   );
 };
 
+(ReactD3TooltipSingle as React.FC).displayName = 'ReactD3TooltipSingle';
 export default ReactD3TooltipSingle;

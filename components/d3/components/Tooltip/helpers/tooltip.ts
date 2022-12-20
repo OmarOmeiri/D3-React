@@ -116,8 +116,8 @@ export const setTooltipPositioning = ({
   if (arrowClass) node.classList.add(arrowClass);
   if (position && !mouseFollow) {
     node.style.visibility = 'visible';
-    node.style.top = `${position.y + chart.dims.margin.top - node.offsetHeight + arrowOffset.top}px`;
-    node.style.left = `${position.x + chart.dims.margin.left - (node.offsetWidth / 2) + arrowOffset.left}px`;
+    node.style.top = `${Math.max(position.y + chart.dims.margin.top, chart.dims.margin.top) - node.offsetHeight + arrowOffset.top}px`;
+    node.style.left = `${Math.max(Math.min(position.x, chart.dims.innerDims.width) + chart.dims.margin.left, chart.dims.margin.left) - (node.offsetWidth / 2) + arrowOffset.left}px`;
     return;
   }
   const tooltipY = getTooltipY(

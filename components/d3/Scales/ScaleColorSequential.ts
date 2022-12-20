@@ -83,4 +83,5 @@ D extends Record<string, unknown>,
   return true;
 });
 
+(ReactD3ScaleColorSequential as React.FC).displayName = 'ReactD3ScaleColorSequential';
 export default ReactD3ScaleColorSequential;
